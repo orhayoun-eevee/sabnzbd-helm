@@ -1,0 +1,780 @@
+# Default values for sabnzbd-new
+# Converted to libchart pattern (nested under app-chart dependency)
+# ----------------------------------------------------------------------------
+# Global Configuration
+# ----------------------------------------------------------------------------
+global:
+  name: sabnzbd
+  chart:
+    appVersion: 4.5.3
+  labels:
+    overrides:
+      app.kubernetes.io/instance: sabnzbd
+
+# ----------------------------------------------------------------------------
+# App-Chart Configuration (Nested under dependency name)
+# ----------------------------------------------------------------------------
+app-chart:
+  # ----------------------------------------------------------------------------
+  # Service Configuration
+  # ----------------------------------------------------------------------------
+  network:
+    enabled: true
+    services:
+      enabled: true
+      items:
+        http:
+          enabled: true
+          type: ClusterIP
+          ports:
+            http:
+              port: 8080
+              targetPort: http
+              protocol: TCP
+          annotations:
+            description: "SABnzbd media center HTTP service"
+        metrics:
+          enabled: true
+          type: ClusterIP
+          ports:
+            metrics:
+              port: 9100
+              targetPort: metrics
+              protocol: TCP
+          annotations:
+            description: "SABnzbd metrics service"
+
+    # ----------------------------------------------------------------------------
+    # Feature: Networking (Gateway API & Security)
+    # ----------------------------------------------------------------------------
+    httpRoute:
+      enabled: true
+      port: 8080
+      host: sabnzbd-k8s.orhayoun.com
+      gateway:
+        name: shared-platform-gateway
+        namespace: istio-system
+      routes:
+        # Main Application Route (HTTPS)
+        - name: route
+          enabled: true
+          listener:
+            sectionName: https
+          rules:
+            - matches:
+                - path:
+                    type: PathPrefix
+                    value: /
+              backendRefs:
+                - name: sabnzbd-http
+                  port: 8080
+                  weight: 100
+                  group: ""
+                  kind: Service
+
+        # HTTP Redirect Route
+        - name: http-redirect
+          enabled: true
+          listener:
+            sectionName: http
+          rules:
+            - matches:
+                - path:
+                    type: PathPrefix
+                    value: /
+              filters:
+                - type: RequestRedirect
+                  requestRedirect:
+                    scheme: https
+                    statusCode: 301
+    networkPolicy:
+      enabled: true
+      items: 
+        default:
+          enabled: true
+          policyTypes:
+            - Ingress
+            - Egress
+          ingress:
+            - from:
+                # Gateway traffic (HTTP + HBONE for ambient mesh)
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: istio-system
+                  podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: shared-platform-gateway
+                      
+                # Prometheus metrics scraping (metrics port + HBONE for ambient mesh)
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: monitoring
+                  podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: prometheus
+
+                # Home Assistant API access (HTTP + HBONE for ambient mesh)
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: homeassistant
+                  podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: home-assistant
+
+                # Media services access (radarr, sonarr) - HTTP + HBONE for ambient mesh
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: media-center
+                  podSelector:
+                    matchLabels:
+                      app.kubernetes.io/part-of: media-center
+              ports:
+                - protocol: TCP
+                  port: 15008
+          egress:
+            # DNS access (required for service discovery and external lookups)
+            - to:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: kube-system
+                  podSelector:
+                    matchLabels:
+                      k8s-app: kube-dns
+              ports:
+                - protocol: UDP
+                  port: 53
+                - protocol: TCP
+                  port: 53
+
+            # Internet access (for Usenet servers, updates) - excludes cluster CIDRs
+            # SECURITY NOTE: This rule allows egress to 0.0.0.0/0 (all internet) on ports 80, 443, 8080, 563, 119.
+            # WHY BROAD EGRESS IS NECESSARY:
+            # - Usenet server IPs change dynamically (cannot whitelist specific IPs)
+            # - Application updates come from various sources
+            # - Usenet protocol requires ports 563 (NNTPS) and 119 (NNTP)
+            # SECURITY RISK: If a container is compromised, it can exfiltrate data or download malware
+            # MITIGATION: Firewall monitoring, NetworkPolicy (L3/L4), AuthorizationPolicy (L7), Container Security
+            - to:
+                - ipBlock:
+                    cidr: "0.0.0.0/0"
+                    except:
+                      - "10.42.0.0/16"
+                      - "10.43.0.0/16"
+                      - "192.168.0.0/16"
+              ports:
+                - protocol: TCP
+                  port: 563
+
+            # Istio HBONE for ambient mesh communication
+            - to:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: istio-system
+              ports:
+                - protocol: TCP
+                  port: 15008
+
+    istio:
+      enabled: true
+      authorizationPolicy:
+        enabled: true
+        items:
+          # Ingress gateway access - allows traffic from the gateway to the service
+          ingress:
+            enabled: true
+            action: ALLOW
+            rules:
+              - from:
+                  - source:
+                      principals:
+                        - "cluster.local/ns/istio-system/sa/shared-platform-gateway-istio"
+                to:
+                  - operation:
+                      ports: ["8080"]
+          # Prometheus metrics scraping - allows Prometheus to scrape metrics
+          prometheus:
+            enabled: true
+            action: ALLOW
+            rules:
+              - from:
+                  - source:
+                      principals:
+                        - "cluster.local/ns/monitoring/sa/prometheus-kube-prometheus-prometheus"
+                to:
+                  - operation:
+                      ports: ["9100"]
+          # Home Assistant access (custom policy)
+          homeassistant:
+            enabled: true
+            action: ALLOW
+            rules:
+              - from:
+                  - source:
+                      principals:
+                        - "cluster.local/ns/homeassistant/sa/homeassistant-home-assistant"
+                to:
+                  - operation:
+                      ports: ["8080"]
+          # Media services access (radarr, sonarr) - multiple sources
+          media-services:
+            enabled: true
+            action: ALLOW
+            rules:
+              - from:
+                  - source:
+                      principals:
+                        - "cluster.local/ns/media-center/sa/radarr"
+                        - "cluster.local/ns/media-center/sa/sonarr"
+                to:
+                  - operation:
+                      ports: ["8080"]
+      # ----------------------------------------------------------------------------
+      # Circuit Breaker Configuration
+      # ----------------------------------------------------------------------------
+      destinationrule:
+        enabled: true
+        host: sabnzbd-http
+        trafficPolicy:
+          connectionPool:
+            tcp:
+              maxConnections: 200
+            http:
+              http1MaxPendingRequests: 50
+              http2MaxRequests: 200
+              maxRequestsPerConnection: 10
+          outlierDetection:
+            consecutive5xxErrors: 5
+            interval: 30s
+            baseEjectionTime: 15s
+            maxEjectionPercent: 50
+ 
+
+  # ----------------------------------------------------------------------------
+  # Deployment Configuration
+  # ----------------------------------------------------------------------------
+  deployment:
+    replicas: 1
+    strategy:
+      type: Recreate
+    revisionHistoryLimit: 3
+    terminationGracePeriodSeconds: 60
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: false
+    automountServiceAccountToken: false
+
+    # Pod labels
+    podLabels:
+      app.kubernetes.io/component: downloader
+      app.kubernetes.io/part-of: download-clients
+      logging.kubernetes.io/component: download-clients
+      logging.kubernetes.io/service: sabnzbd
+
+    # Pod security context
+    podSecurityContext:
+      fsGroup: 1010
+      fsGroupChangePolicy: OnRootMismatch
+      runAsNonRoot: true
+      supplementalGroups: []  # Empty - SABnzbd doesn't need additional NFS groups like media-center services
+
+    # Node selector to ensure pods only schedule on Linux nodes
+    nodeSelector:
+      kubernetes.io/os: linux
+
+    # Main container configuration
+    # NOTE: Container name 'sabnzbd' matches dashboard queries (container="sabnzbd")
+    # Application-v2 requires explicit container definitions (no defaults)
+    containers:
+      sabnzbd:
+        enabled: true
+        image:
+          repository: ghcr.io/runlix/sabnzbd
+          tag: "release-4.5.5-latest"
+          digest: "sha256:826caa03179efed2d9ebb636d1cfbe50ba9a7982d467aa3288ebdb6c52c7e803"
+          pullPolicy: IfNotPresent
+
+        env:
+          - name: TZ
+            value: "UTC"
+        
+        ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+        
+        volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: backup
+            mountPath: /backup
+          - name: downloads
+            mountPath: /downloads
+          - name: media
+            mountPath: /media
+          - name: tmp
+            mountPath: /tmp
+
+        # Health Probes
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+
+        startupProbe:
+          httpGet:
+            path: /
+            port: http
+            scheme: HTTP
+          failureThreshold: 30
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+
+        # Container Security Context (main container override)
+        securityContext:
+          readOnlyRootFilesystem: true  # SECURITY: Read-only root filesystem prevents writes to root filesystem
+          runAsNonRoot: true
+          runAsUser: 1010  # Matches SABnzbd PUID from MEDIA_CENTER_PERMISSIONS.md
+          runAsGroup: 1010  # Matches SABnzbd PGID from MEDIA_CENTER_PERMISSIONS.md
+          allowPrivilegeEscalation: false
+          privileged: false
+          appArmorProfile:
+            type: RuntimeDefault
+          capabilities:
+            # SETUID/SETGID capabilities not needed for runlix image
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+
+        # Resources
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 256Mi
+            ephemeral-storage: 2Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+            ephemeral-storage: 2Gi
+
+      # Metrics exporter container (Exportarr)
+      exportarr:
+        enabled: true
+        image:
+          repository: ghcr.io/orhayoun/exportarr
+          tag: "v2.3.1"
+          digest: "sha256:2650f6a501b1d691daf5dfe758068f44336d0bb1d443f9db2c94900244d423bc"
+          pullPolicy: IfNotPresent
+
+        args:
+          - "sabnzbd"
+
+        env:
+          - name: URL
+            value: http://localhost:8080
+          - name: CONFIG
+            value: /config/sabnzbd.ini
+          - name: PORT
+            value: "9100"
+          - name: ENABLE_ADDITIONAL_METRICS
+            value: "false"
+          - name: ENABLE_UNKNOWN_QUEUE_ITEMS
+            value: "false"
+
+        ports:
+          - containerPort: 9100
+            name: metrics
+            protocol: TCP
+
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+
+        # Health Probes
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+
+        startupProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 45  # MONITORING: Allow time for SABnzbd to be ready
+          periodSeconds: 10  # MONITORING: Check every 10s to reduce probe frequency during startup
+          timeoutSeconds: 10  # MONITORING: Longer timeout allows exporter time to connect to SABnzbd and respond
+          failureThreshold: 30  # MONITORING: Allow up to 5 minutes total startup time (45s + 30*10s = 345s)
+          successThreshold: 1
+
+        # Container Security Context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true  # Exportarr can run read-only
+          runAsNonRoot: true
+          runAsUser: 65534  # nobody user
+          runAsGroup: 65534
+          appArmorProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+
+        # Resources
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+            ephemeral-storage: 10Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+            ephemeral-storage: 10Mi
+
+  # ----------------------------------------------------------------------------
+  # Feature: Persistence
+  # ----------------------------------------------------------------------------
+  persistence:
+    enabled: true
+    claims:
+      config:
+        size: 2Gi
+        storageClass: longhorn
+        accessMode: ReadWriteOnce
+        retain: true
+    volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: sabnzbd-config
+      - name: downloads
+        nfs:
+          server: snorlax.orhayoun.com
+          path: /mnt/vol1/media-center/downloads
+      - name: media
+        nfs:
+          server: snorlax.orhayoun.com
+          path: /mnt/vol1/media-center/media
+      - name: backup
+        nfs:
+          server: snorlax.orhayoun.com
+          path: /mnt/vol1/media-center/backup/sabnzbd
+      - name: tmp
+        emptyDir:
+          sizeLimit: 1Gi
+
+  # ----------------------------------------------------------------------------
+  # Feature: Observability
+  # ----------------------------------------------------------------------------
+  metrics:
+    enabled: true
+    # ServiceMonitor Configuration
+    serviceMonitor:
+      enabled: true
+      port: 9100
+      interval: 10s  # ServiceMonitor scrape interval
+      scrapeTimeout: 5s  # ServiceMonitor scrape timeout
+      path: /metrics # Optional - Metrics endpoint path (e.g., "/metrics")
+      honorLabels: true # Optional - Honor labels from target (boolean)
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: sabnzbd
+          app.kubernetes.io/instance: sabnzbd
+          app.kubernetes.io/component: service-metrics
+
+      namespaceSelector:
+        matchNames:
+          - download-clients
+
+      relabelings:
+        - action: replace
+          sourceLabels:
+            - __meta_kubernetes_namespace
+          targetLabel: namespace
+        - action: replace
+          sourceLabels:
+            - __meta_kubernetes_pod_name
+          targetLabel: instance
+
+      metricRelabelings:
+        - action: replace
+          replacement: sabnzbd
+          targetLabel: service
+        - action: replace
+          replacement: download-clients
+          targetLabel: component
+    # PrometheusRule Configuration
+    prometheusRule:
+      enabled: true
+      rules:
+      # SABnzbd metrics target down (scrape health)
+      - alert: SabnzbdDown
+        expr: up{job=~"sabnzbd|sabnzbd-metrics"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd metrics target is down"
+          description: "Prometheus cannot scrape sabnzbd metrics (job sabnzbd/sabnzbd-metrics) for more than 5 minutes."
+      
+      # Queue size alert
+      - alert: SabnzbdQueueHigh
+        expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd queue is high"
+          description: "Sabnzbd has more than 100 items in the download queue for more than 10 minutes."
+      
+      # Queue warnings (SABnzbd-native signal)
+      - alert: SabnzbdQueueWarnings
+        expr: sabnzbd_queue_warnings{service="sabnzbd", component="download-clients"} > 0
+        for: 15m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd queue warnings detected"
+          description: "Sabnzbd reports queue warnings for more than 15 minutes. Inspect SABnzbd UI/logs for details."
+      
+      # Low free space in download folder (app-level view; often backed by NFS)
+      - alert: SabnzbdDownloadDiskFreeLow
+        expr: (sabnzbd_disk_total_bytes{service="sabnzbd", component="download-clients", folder="download"} - sabnzbd_disk_used_bytes{service="sabnzbd", component="download-clients", folder="download"}) < 20 * 1024 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          volume_type: download
+        annotations:
+          summary: "Sabnzbd download disk free space is low"
+          description: "Sabnzbd reports less than 20GiB free in folder=download for more than 5 minutes."
+
+      # Low free space in complete folder
+      - alert: SabnzbdCompleteDiskFreeLow
+        expr: (sabnzbd_disk_total_bytes{service="sabnzbd", component="download-clients", folder="complete"} - sabnzbd_disk_used_bytes{service="sabnzbd", component="download-clients", folder="complete"}) < 20 * 1024 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          volume_type: complete
+        annotations:
+          summary: "Sabnzbd complete disk free space is low"
+          description: "Sabnzbd reports less than 20GiB free in folder=complete for more than 5 minutes."
+      
+      # Exportarr sidecar restarting alert (tolerate historical container name variations)
+      - alert: SabnzbdExportarrRestarting
+        expr: increase(kube_pod_container_status_restarts_total{namespace="download-clients", pod=~"sabnzbd-.*", container=~"exportarr|exporter"}[1h]) > 2
+        for: 0m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd Exportarr sidecar restarting frequently"
+          description: "Exportarr sidecar container in Sabnzbd pod {{ $labels.pod }} has restarted more than 2 times in the last hour."
+      
+      # Exporter container not ready alert
+      - alert: SabnzbdExporterNotReady
+        expr: |
+          kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"} > 0
+          and
+          kube_pod_container_status_ready{container=~"exportarr|exporter", pod=~"sabnzbd-.*", namespace="download-clients"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd Exportarr sidecar is not ready"
+          description: "Exportarr container in Sabnzbd pod {{ $labels.pod }} is not ready for more than 2 minutes. Check exporter container logs."
+      
+      # Exportarr metrics unavailable alert
+      - alert: SabnzbdExportarrMetricsUnavailable
+        expr: kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"} > 0 and absent_over_time(sabnzbd_info{service="sabnzbd", component="download-clients"}[5m])
+        for: 5m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd Exportarr metrics endpoint unavailable"
+          description: "Sabnzbd pod is running but Exportarr metrics are missing for more than 5 minutes. Check Exportarr container logs in pod {{ $labels.pod }}."
+      
+      # Authorization policy denials alert
+      - alert: SabnzbdAuthorizationPolicyDenials
+        expr: sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http", response_code="403", response_flags="SEC"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          security: authorization
+        annotations:
+          summary: "Sabnzbd authorization policy denials detected"
+          description: "Sabnzbd is experiencing authorization policy denials. {{ $value }} requests/sec are being denied."
+      
+      # High authorization denial rate alert
+      - alert: SabnzbdHighAuthorizationDenialRate
+        expr: |
+          (
+            sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http", response_code="403", response_flags="SEC"}[5m]))
+            /
+            sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http"}[5m]))
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          service: sabnzbd
+          component: download-clients
+          security: authorization
+        annotations:
+          summary: "Sabnzbd high authorization denial rate"
+          description: "Sabnzbd has a high authorization denial rate ({{ $value }}% of requests denied). This may indicate a misconfigured authorization policy."
+
+      # Stalled downloads: queue exists but speed is ~0 for a sustained period
+      - alert: SabnzbdStalledDownloads
+        expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 0 and avg_over_time(sabnzbd_speed_bps{service="sabnzbd", component="download-clients"}[10m]) < 1024
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd downloads appear stalled"
+          description: "Sabnzbd has items in queue but average download speed is < 1KiB/s for 10 minutes."
+
+      # Provider health regression: overall article success rate is low
+      - alert: SabnzbdProviderSuccessRateLow
+        expr: (sum(increase(sabnzbd_server_articles_success{service="sabnzbd", component="download-clients"}[15m])) / sum(increase(sabnzbd_server_articles_total{service="sabnzbd", component="download-clients"}[15m]))) < 0.95
+        for: 15m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd provider success rate is low"
+          description: "Overall SABnzbd server article success rate < 95% for 15 minutes (provider/indexer issues likely)."
+
+      # Exporter scrape is slow (SAB API or exporter slowness)
+      - alert: SabnzbdExportarrScrapeSlow
+        expr: max_over_time(sabnzbd_scrape_duration_seconds{service="sabnzbd", component="download-clients"}[10m]) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd exporter scrape is slow"
+          description: "Exportarr scrape duration > 2s (max over 10m). Check SAB API responsiveness and exporter logs."
+
+      # CPU utilization vs requests (cluster/runtime-level)
+      - alert: SabnzbdHighCPUUtilization
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"}[5m]))
+            /
+            sum(kube_pod_container_resource_requests{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="cpu"})
+          ) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          resource: cpu
+        annotations:
+          summary: "Sabnzbd CPU utilization is high"
+          description: "Sabnzbd CPU usage is above 80% of requested CPU for more than 10 minutes (value={{ $value }}%)."
+
+      # Memory utilization vs limits (cluster/runtime-level)
+      - alert: SabnzbdHighMemoryUtilization
+        expr: |
+          (
+            max(container_memory_working_set_bytes{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"})
+            /
+            max(kube_pod_container_resource_limits{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="memory"})
+          ) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          resource: memory
+        annotations:
+          summary: "Sabnzbd memory utilization is high"
+          description: "Sabnzbd memory working set is above 85% of memory limit for more than 10 minutes (value={{ $value }}%)."
+    # Grafana Configuration
+    grafana:
+      enabled: true
+      dashboard:
+        enabled: true
+        items:
+          app:
+            enabled: true
+            json: {}
+  # ----------------------------------------------------------------------------
+  # Service Account
+  # ----------------------------------------------------------------------------
+  serviceAccount:
+    create: true
+    name: "sabnzbd"
+    automount: false
+    annotations:
+      description: "SABnzbd media center service account"
+      app.kubernetes.io/managed-by: "argocd"
+
+  # ----------------------------------------------------------------------------
+  # Pod Disruption Budget
+  # ----------------------------------------------------------------------------
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    unhealthyPodEvictionPolicy: AlwaysAllow

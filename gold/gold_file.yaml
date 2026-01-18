@@ -1,0 +1,1993 @@
+---
+# Source: sabnzbd/charts/app-chart/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sabnzbd-default
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "network-policy"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: sabnzbd
+      app.kubernetes.io/name: sabnzbd
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: istio-system
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: shared-platform-gateway
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: monitoring
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: prometheus
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: homeassistant
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: home-assistant
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: media-center
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/part-of: media-center
+      ports:
+      - port: 15008
+        protocol: TCP
+  egress:
+    - ports:
+      - port: 53
+        protocol: UDP
+      - port: 53
+        protocol: TCP
+      to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+    - ports:
+      - port: 563
+        protocol: TCP
+      to:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except:
+          - 10.42.0.0/16
+          - 10.43.0.0/16
+          - 192.168.0.0/16
+    - ports:
+      - port: 15008
+        protocol: TCP
+      to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: istio-system
+---
+# Source: sabnzbd/charts/app-chart/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sabnzbd
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "serviceaccount"
+  annotations:
+    app.kubernetes.io/managed-by: argocd
+    description: SABnzbd media center service account
+automountServiceAccountToken: false
+---
+# Source: sabnzbd/templates/grafana.tpl
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sabnzbd-app
+  namespace: default
+  labels:
+    app.kubernetes.io/component: grafana-dashboard
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    grafana_dashboard: "1"
+    helm.sh/chart: sabnzbd-0.1.0
+data:
+  app: "{\n  \"annotations\": {\n    \"list\": [\n      {\n        \"builtIn\": 1,\n
+    \       \"datasource\": {\n          \"type\": \"grafana\",\n          \"uid\":
+    \"-- Grafana --\"\n        },\n        \"enable\": true,\n        \"hide\": true,\n
+    \       \"iconColor\": \"rgba(0, 211, 255, 1)\",\n        \"name\": \"Annotations
+    & Alerts\",\n        \"type\": \"dashboard\"\n      }\n    ]\n  },\n  \"editable\":
+    true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 0,\n  \"id\": 169,\n
+    \ \"links\": [],\n  \"liveNow\": false,\n  \"panels\": [\n    {\n      \"collapsed\":
+    false,\n      \"gridPos\": {\n        \"h\": 1,\n        \"w\": 24,\n        \"x\":
+    0,\n        \"y\": 0\n      },\n      \"id\": 100,\n      \"panels\": [],\n      \"title\":
+    \"\U0001F4CA Application Metrics\",\n      \"type\": \"row\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"thresholds\"\n          },\n          \"mappings\": [\n            {\n              \"options\":
+    {\n                \"0\": {\n                  \"color\": \"gray\",\n                  \"text\":
+    \"Unknown\"\n                },\n                \"1\": {\n                  \"color\":
+    \"green\",\n                  \"text\": \"Idle\"\n                },\n                \"2\":
+    {\n                  \"color\": \"yellow\",\n                  \"text\": \"Paused\"\n
+    \               },\n                \"3\": {\n                  \"color\": \"blue\",\n
+    \                 \"text\": \"Downloading\"\n                }\n              },\n
+    \             \"type\": \"value\"\n            }\n          ],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"gray\",\n                \"value\": null\n              },\n
+    \             {\n                \"color\": \"green\",\n                \"value\":
+    1\n              },\n              {\n                \"color\": \"yellow\",\n                \"value\":
+    2\n              },\n              {\n                \"color\": \"blue\",\n                \"value\":
+    3\n              }\n            ]\n          },\n          \"unit\": \"short\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    4,\n        \"w\": 6,\n        \"x\": 0,\n        \"y\": 1\n      },\n      \"id\":
+    1,\n      \"options\": {\n        \"colorMode\": \"value\",\n        \"graphMode\":
+    \"area\",\n        \"justifyMode\": \"auto\",\n        \"orientation\": \"auto\",\n
+    \       \"percentChangeColorMode\": \"standard\",\n        \"reduceOptions\": {\n
+    \         \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showPercentChange\": false,\n
+    \       \"textMode\": \"auto\",\n        \"wideLayout\": true\n      },\n      \"pluginVersion\":
+    \"11.1.3\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"sabnzbd_status{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"} *
+    on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"System
+    Status\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\": {\n        \"name\":
+    \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n      \"description\":
+    \"Alerts: SabnzbdQueueHigh\",\n      \"fieldConfig\": {\n        \"defaults\": {\n
+    \         \"color\": {\n            \"mode\": \"thresholds\"\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              },\n              {\n                \"color\": \"yellow\",\n
+    \               \"value\": 10\n              },\n              {\n                \"color\":
+    \"red\",\n                \"value\": 50\n              }\n            ]\n          },\n
+    \         \"unit\": \"short\"\n        },\n        \"overrides\": []\n      },\n
+    \     \"gridPos\": {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\": 6,\n
+    \       \"y\": 1\n      },\n      \"id\": 2,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sabnzbd_queue_length{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"} * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Queue
+    Size\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\": {\n        \"name\":
+    \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n      \"fieldConfig\":
+    {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"thresholds\"\n
+    \         },\n          \"mappings\": [],\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              }\n            ]\n          },\n
+    \         \"unit\": \"Bps\"\n        },\n        \"overrides\": []\n      },\n      \"gridPos\":
+    {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\": 12,\n        \"y\": 1\n
+    \     },\n      \"id\": 3,\n      \"options\": {\n        \"colorMode\": \"value\",\n
+    \       \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n        \"orientation\":
+    \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n        \"reduceOptions\":
+    {\n          \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showPercentChange\": false,\n
+    \       \"textMode\": \"auto\",\n        \"wideLayout\": true\n      },\n      \"pluginVersion\":
+    \"11.1.3\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"sabnzbd_speed_bps{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"}
+    * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Download
+    Speed\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\": {\n        \"name\":
+    \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n      \"fieldConfig\":
+    {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"thresholds\"\n
+    \         },\n          \"mappings\": [\n            {\n              \"options\":
+    {\n                \"match\": \"null\",\n                \"result\": {\n                  \"text\":
+    \"N/A\"\n                }\n              },\n              \"type\": \"special\"\n
+    \           },\n            {\n              \"options\": {\n                \"from\":
+    -999999999999,\n                \"result\": {\n                  \"color\": \"green\",\n
+    \                 \"text\": \"Draining\"\n                },\n                \"to\":
+    0\n              },\n              \"type\": \"range\"\n            },\n            {\n
+    \             \"options\": {\n                \"from\": 0,\n                \"result\":
+    {\n                  \"color\": \"red\",\n                  \"text\": \"Growing\"\n
+    \               },\n                \"to\": 999999999999\n              },\n              \"type\":
+    \"range\"\n            }\n          ],\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              },\n              {\n
+    \               \"color\": \"red\",\n                \"value\": 0\n              }\n
+    \           ]\n          },\n          \"unit\": \"Bps\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\":
+    18,\n        \"y\": 1\n      },\n      \"id\": 34,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"deriv((sabnzbd_remaining_bytes{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"} * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end()))[5m:])\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\":
+    \"Queue Drain Rate\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"palette-classic\"\n          },\n          \"custom\": {\n            \"fillOpacity\":
+    70,\n            \"hideFrom\": {\n              \"legend\": false,\n              \"tooltip\":
+    false,\n              \"viz\": false\n            },\n            \"insertNulls\":
+    false,\n            \"lineWidth\": 0,\n            \"spanNulls\": false\n          },\n
+    \         \"mappings\": [\n            {\n              \"options\": {\n                \"0\":
+    {\n                  \"color\": \"gray\",\n                  \"text\": \"Unknown\"\n
+    \               },\n                \"1\": {\n                  \"color\": \"green\",\n
+    \                 \"text\": \"Idle\"\n                },\n                \"2\":
+    {\n                  \"color\": \"yellow\",\n                  \"text\": \"Paused\"\n
+    \               },\n                \"3\": {\n                  \"color\": \"blue\",\n
+    \                 \"text\": \"Downloading\"\n                }\n              },\n
+    \             \"type\": \"value\"\n            }\n          ],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"gray\",\n                \"value\": null\n              },\n
+    \             {\n                \"color\": \"green\",\n                \"value\":
+    1\n              },\n              {\n                \"color\": \"yellow\",\n                \"value\":
+    2\n              },\n              {\n                \"color\": \"blue\",\n                \"value\":
+    3\n              }\n            ]\n          },\n          \"unit\": \"short\"\n
+    \       },\n        \"overrides\": [\n          {\n            \"matcher\": {\n
+    \             \"id\": \"byName\",\n              \"options\": \"{component=\\\"download-clients\\\",
+    container=\\\"exporter\\\", endpoint=\\\"metrics\\\", job=\\\"sabnzbd-metrics\\\",
+    namespace=\\\"download-clients\\\", service=\\\"sabnzbd\\\", url=\\\"http://localhost:8080\\\"}\"\n
+    \           },\n            \"properties\": [\n              {\n                \"id\":
+    \"displayName\",\n                \"value\": \".\"\n              }\n            ]\n
+    \         }\n        ]\n      },\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\":
+    12,\n        \"x\": 0,\n        \"y\": 5\n      },\n      \"id\": 5,\n      \"options\":
+    {\n        \"alignValue\": \"left\",\n        \"legend\": {\n          \"displayMode\":
+    \"list\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"mergeValues\": true,\n        \"rowHeight\": 0.9,\n        \"showValue\":
+    \"auto\",\n        \"showValues\": \"never\",\n        \"tooltip\": {\n          \"mode\":
+    \"single\",\n          \"sort\": \"none\"\n        }\n      },\n      \"pluginVersion\":
+    \"10.0.0\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"max without (pod, instance) (sabnzbd_status{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"})\",\n
+    \         \"legendFormat\": \"\",\n          \"refId\": \"A\"\n        }\n      ],\n
+    \     \"title\": \"System Status Over Time\",\n      \"type\": \"state-timeline\"\n
+    \   },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\":
+    \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"palette-classic\"\n          },\n          \"custom\":
+    {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\": false,\n
+    \           \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\":
+    \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n
+    \           \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\":
+    {\n              \"legend\": false,\n              \"tooltip\": false,\n              \"viz\":
+    false\n            },\n            \"insertNulls\": false,\n            \"lineInterpolation\":
+    \"linear\",\n            \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"short\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 5\n      },\n      \"id\":
+    6,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sabnzbd_queue_length{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"}\",\n          \"legendFormat\": \"Queue Size\",\n
+    \         \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Queue Size Over
+    Time\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\": {\n
+    \       \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"palette-classic\"\n          },\n          \"custom\": {\n            \"axisBorderShow\":
+    false,\n            \"axisCenteredZero\": false,\n            \"axisColorMode\":
+    \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\": \"auto\",\n
+    \           \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n            \"fillOpacity\":
+    10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\": {\n              \"legend\":
+    false,\n              \"tooltip\": false,\n              \"viz\": false\n            },\n
+    \           \"insertNulls\": false,\n            \"lineInterpolation\": \"linear\",\n
+    \           \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"Bps\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 13\n      },\n      \"id\":
+    7,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sabnzbd_speed_bps{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"}\",\n          \"legendFormat\": \"Download Speed\",\n
+    \         \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Download Speed
+    Over Time\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"palette-classic\"\n          },\n          \"custom\": {\n            \"axisBorderShow\":
+    false,\n            \"axisCenteredZero\": false,\n            \"axisColorMode\":
+    \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\": \"auto\",\n
+    \           \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n            \"fillOpacity\":
+    10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\": {\n              \"legend\":
+    false,\n              \"tooltip\": false,\n              \"viz\": false\n            },\n
+    \           \"insertNulls\": false,\n            \"lineInterpolation\": \"linear\",\n
+    \           \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"bytes\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 13\n      },\n      \"id\":
+    8,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sabnzbd_total_bytes{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"}\",\n          \"legendFormat\": \"Total Queue
+    Size\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Total
+    Queue Size Over Time\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"thresholds\"\n          },\n          \"mappings\": [\n            {\n              \"options\":
+    {\n                \"0\": {\n                  \"color\": \"green\",\n                  \"text\":
+    \"Not Paused\"\n                },\n                \"1\": {\n                  \"color\":
+    \"yellow\",\n                  \"text\": \"Paused\"\n                }\n              },\n
+    \             \"type\": \"value\"\n            }\n          ],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              },\n
+    \             {\n                \"color\": \"yellow\",\n                \"value\":
+    1\n              }\n            ]\n          },\n          \"unit\": \"short\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    4,\n        \"w\": 6,\n        \"x\": 0,\n        \"y\": 21\n      },\n      \"id\":
+    28,\n      \"options\": {\n        \"colorMode\": \"value\",\n        \"graphMode\":
+    \"area\",\n        \"justifyMode\": \"auto\",\n        \"orientation\": \"auto\",\n
+    \       \"percentChangeColorMode\": \"standard\",\n        \"reduceOptions\": {\n
+    \         \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showPercentChange\": false,\n
+    \       \"textMode\": \"auto\",\n        \"wideLayout\": true\n      },\n      \"pluginVersion\":
+    \"11.1.3\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"sabnzbd_paused{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"} *
+    on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Paused
+    Status\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\": {\n        \"name\":
+    \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n      \"fieldConfig\":
+    {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"thresholds\"\n
+    \         },\n          \"mappings\": [],\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              }\n            ]\n          },\n
+    \         \"unit\": \"short\"\n        },\n        \"overrides\": []\n      },\n
+    \     \"gridPos\": {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\": 6,\n
+    \       \"y\": 21\n      },\n      \"id\": 29,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sabnzbd_queue_warnings{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"} * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Queue
+    Warnings\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\": {\n
+    \       \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"thresholds\"\n          },\n          \"mappings\": [],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              }\n
+    \           ]\n          },\n          \"unit\": \"s\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\":
+    12,\n        \"y\": 21\n      },\n      \"id\": 30,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sabnzbd_time_estimate_seconds{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"} * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Time
+    Estimate\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\": {\n
+    \       \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"thresholds\"\n          },\n          \"mappings\": [],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              }\n
+    \           ]\n          },\n          \"unit\": \"bytes\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\":
+    18,\n        \"y\": 21\n      },\n      \"id\": 31,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sabnzbd_article_cache_bytes{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"} * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Article
+    Cache Bytes\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\": {\n
+    \       \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"palette-classic\"\n          },\n          \"custom\": {\n            \"axisBorderShow\":
+    false,\n            \"axisCenteredZero\": false,\n            \"axisColorMode\":
+    \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\": \"auto\",\n
+    \           \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n            \"fillOpacity\":
+    10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\": {\n              \"legend\":
+    false,\n              \"tooltip\": false,\n              \"viz\": false\n            },\n
+    \           \"insertNulls\": false,\n            \"lineInterpolation\": \"linear\",\n
+    \           \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"bytes\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    8,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 25\n      },\n      \"id\":
+    32,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"increase(sabnzbd_server_downloaded_bytes{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"}[5m])\",\n          \"legendFormat\": \"{{server}}\",\n
+    \         \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Server Downloaded
+    Bytes (5m) by Server\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"collapsed\":
+    true,\n      \"gridPos\": {\n        \"h\": 1,\n        \"w\": 24,\n        \"x\":
+    0,\n        \"y\": 33\n      },\n      \"id\": 300,\n      \"panels\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"fieldConfig\": {\n            \"defaults\":
+    {\n              \"color\": {\n                \"mode\": \"palette-classic\"\n              },\n
+    \             \"custom\": {\n                \"axisBorderShow\": false,\n                \"axisCenteredZero\":
+    false,\n                \"axisColorMode\": \"text\",\n                \"axisLabel\":
+    \"\",\n                \"axisPlacement\": \"auto\",\n                \"barAlignment\":
+    0,\n                \"drawStyle\": \"line\",\n                \"fillOpacity\": 10,\n
+    \               \"gradientMode\": \"none\",\n                \"hideFrom\": {\n                  \"legend\":
+    false,\n                  \"tooltip\": false,\n                  \"viz\": false\n
+    \               },\n                \"insertNulls\": false,\n                \"lineInterpolation\":
+    \"linear\",\n                \"lineWidth\": 1,\n                \"pointSize\": 5,\n
+    \               \"scaleDistribution\": {\n                  \"type\": \"linear\"\n
+    \               },\n                \"showPoints\": \"never\",\n                \"spanNulls\":
+    false,\n                \"stacking\": {\n                  \"group\": \"A\",\n                  \"mode\":
+    \"none\"\n                },\n                \"thresholdsStyle\": {\n                  \"mode\":
+    \"off\"\n                }\n              },\n              \"mappings\": [],\n
+    \             \"thresholds\": {\n                \"mode\": \"absolute\",\n                \"steps\":
+    [\n                  {\n                    \"color\": \"green\",\n                    \"value\":
+    null\n                  }\n                ]\n              },\n              \"unit\":
+    \"bytes\"\n            },\n            \"overrides\": []\n          },\n          \"gridPos\":
+    {\n            \"h\": 8,\n            \"w\": 12,\n            \"x\": 0,\n            \"y\":
+    37\n          },\n          \"id\": 26,\n          \"options\": {\n            \"legend\":
+    {\n              \"calcs\": [\n                \"last\",\n                \"max\",\n
+    \               \"mean\"\n              ],\n              \"displayMode\": \"table\",\n
+    \             \"placement\": \"bottom\",\n              \"showLegend\": true\n            },\n
+    \           \"tooltip\": {\n              \"mode\": \"multi\",\n              \"sort\":
+    \"none\"\n            }\n          },\n          \"pluginVersion\": \"10.0.0\",\n
+    \         \"targets\": [\n            {\n              \"datasource\": {\n                \"name\":
+    \"Prometheus\",\n                \"type\": \"prometheus\"\n              },\n              \"expr\":
+    \"sabnzbd_remaining_bytes{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"}
+    * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n              \"legendFormat\": \"Remaining Bytes\",\n              \"refId\":
+    \"A\"\n            },\n            {\n              \"datasource\": {\n                \"name\":
+    \"Prometheus\",\n                \"type\": \"prometheus\"\n              },\n              \"expr\":
+    \"sabnzbd_total_bytes{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"}
+    * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n              \"legendFormat\": \"Total Bytes\",\n              \"refId\":
+    \"B\"\n            }\n          ],\n          \"title\": \"Remaining vs Total Bytes\",\n
+    \         \"type\": \"timeseries\"\n        },\n        {\n          \"datasource\":
+    {\n            \"name\": \"Prometheus\",\n            \"type\": \"prometheus\"\n
+    \         },\n          \"fieldConfig\": {\n            \"defaults\": {\n              \"color\":
+    {\n                \"mode\": \"palette-classic\"\n              },\n              \"custom\":
+    {\n                \"axisBorderShow\": false,\n                \"axisCenteredZero\":
+    false,\n                \"axisColorMode\": \"text\",\n                \"axisLabel\":
+    \"\",\n                \"axisPlacement\": \"auto\",\n                \"barAlignment\":
+    0,\n                \"drawStyle\": \"line\",\n                \"fillOpacity\": 10,\n
+    \               \"gradientMode\": \"none\",\n                \"hideFrom\": {\n                  \"legend\":
+    false,\n                  \"tooltip\": false,\n                  \"viz\": false\n
+    \               },\n                \"insertNulls\": false,\n                \"lineInterpolation\":
+    \"linear\",\n                \"lineWidth\": 1,\n                \"pointSize\": 5,\n
+    \               \"scaleDistribution\": {\n                  \"type\": \"linear\"\n
+    \               },\n                \"showPoints\": \"never\",\n                \"spanNulls\":
+    false,\n                \"stacking\": {\n                  \"group\": \"A\",\n                  \"mode\":
+    \"none\"\n                },\n                \"thresholdsStyle\": {\n                  \"mode\":
+    \"off\"\n                }\n              },\n              \"mappings\": [],\n
+    \             \"thresholds\": {\n                \"mode\": \"absolute\",\n                \"steps\":
+    [\n                  {\n                    \"color\": \"green\",\n                    \"value\":
+    null\n                  }\n                ]\n              },\n              \"unit\":
+    \"bytes\"\n            },\n            \"overrides\": []\n          },\n          \"gridPos\":
+    {\n            \"h\": 8,\n            \"w\": 12,\n            \"x\": 12,\n            \"y\":
+    37\n          },\n          \"id\": 27,\n          \"options\": {\n            \"legend\":
+    {\n              \"calcs\": [\n                \"last\",\n                \"max\",\n
+    \               \"mean\"\n              ],\n              \"displayMode\": \"table\",\n
+    \             \"placement\": \"bottom\",\n              \"showLegend\": true\n            },\n
+    \           \"tooltip\": {\n              \"mode\": \"multi\",\n              \"sort\":
+    \"none\"\n            }\n          },\n          \"pluginVersion\": \"10.0.0\",\n
+    \         \"targets\": [\n            {\n              \"datasource\": {\n                \"name\":
+    \"Prometheus\",\n                \"type\": \"prometheus\"\n              },\n              \"expr\":
+    \"increase(sabnzbd_downloaded_bytes{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"}[5m])\",\n
+    \             \"legendFormat\": \"Downloaded (5m)\",\n              \"refId\": \"A\"\n
+    \           },\n            {\n              \"datasource\": {\n                \"name\":
+    \"Prometheus\",\n                \"type\": \"prometheus\"\n              },\n              \"expr\":
+    \"sabnzbd_downloaded_bytes{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"}
+    * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n              \"legendFormat\": \"Total Downloaded\",\n              \"refId\":
+    \"B\"\n            }\n          ],\n          \"title\": \"Downloaded Bytes\",\n
+    \         \"type\": \"timeseries\"\n        },\n        {\n          \"datasource\":
+    {\n            \"name\": \"Prometheus\",\n            \"type\": \"prometheus\"\n
+    \         },\n          \"fieldConfig\": {\n            \"defaults\": {\n              \"mappings\":
+    [],\n              \"thresholds\": {\n                \"mode\": \"absolute\",\n
+    \               \"steps\": [\n                  {\n                    \"color\":
+    \"green\",\n                    \"value\": null\n                  },\n                  {\n
+    \                   \"color\": \"red\",\n                    \"value\": 80\n                  }\n
+    \               ]\n              },\n              \"unit\": \"bytes\"\n            },\n
+    \           \"overrides\": []\n          },\n          \"gridPos\": {\n            \"h\":
+    4,\n            \"w\": 6,\n            \"x\": 0,\n            \"y\": 45\n          },\n
+    \         \"id\": 201,\n          \"options\": {\n            \"colorMode\": \"value\",\n
+    \           \"graphMode\": \"area\",\n            \"justifyMode\": \"auto\",\n            \"orientation\":
+    \"auto\",\n            \"percentChangeColorMode\": \"standard\",\n            \"reduceOptions\":
+    {\n              \"calcs\": [\n                \"lastNotNull\"\n              ],\n
+    \             \"fields\": \"\",\n              \"values\": false\n            },\n
+    \           \"showPercentChange\": false,\n            \"textMode\": \"auto\",\n
+    \           \"wideLayout\": true\n          },\n          \"pluginVersion\": \"11.1.3\",\n
+    \         \"targets\": [\n            {\n              \"datasource\": {\n                \"name\":
+    \"Prometheus\",\n                \"type\": \"prometheus\"\n              },\n              \"expr\":
+    \"sabnzbd_remaining_quota_bytes{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\"}
+    * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end())\",\n              \"refId\": \"A\"\n            }\n          ],\n          \"title\":
+    \"Remaining Quota\",\n          \"type\": \"stat\"\n        },\n        {\n          \"datasource\":
+    {\n            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n
+    \         },\n          \"fieldConfig\": {\n            \"defaults\": {\n              \"mappings\":
+    [],\n              \"thresholds\": {\n                \"mode\": \"absolute\",\n
+    \               \"steps\": [\n                  {\n                    \"color\":
+    \"green\",\n                    \"value\": null\n                  },\n                  {\n
+    \                   \"color\": \"red\",\n                    \"value\": 80\n                  }\n
+    \               ]\n              },\n              \"unit\": \"bytes\"\n            },\n
+    \           \"overrides\": []\n          },\n          \"gridPos\": {\n            \"h\":
+    4,\n            \"w\": 6,\n            \"x\": 6,\n            \"y\": 45\n          },\n
+    \         \"id\": 202,\n          \"options\": {\n            \"colorMode\": \"value\",\n
+    \           \"graphMode\": \"area\",\n            \"justifyMode\": \"auto\",\n            \"orientation\":
+    \"auto\",\n            \"percentChangeColorMode\": \"standard\",\n            \"reduceOptions\":
+    {\n              \"calcs\": [\n                \"lastNotNull\"\n              ],\n
+    \             \"fields\": \"\",\n              \"values\": false\n            },\n
+    \           \"showPercentChange\": false,\n            \"textMode\": \"auto\",\n
+    \           \"wideLayout\": true\n          },\n          \"pluginVersion\": \"11.1.3\",\n
+    \         \"targets\": [\n            {\n              \"datasource\": {\n                \"name\":
+    \"Prometheus\",\n                \"type\": \"prometheus\"\n              },\n              \"editorMode\":
+    \"code\",\n              \"expr\": \"sabnzbd_quota_bytes{service=\\\"sabnzbd\\\",
+    component=\\\"download-clients\\\"}\\n* on(pod)\\ngroup_left()\\n(\\n  kube_pod_status_phase{\\n
+    \   namespace=\\\"$namespace\\\",\\n    pod=~\\\"$pod_regex\\\",\\n    phase=\\\"Running\\\"\\n
+    \ } @ end()\\n)\",\n              \"range\": true,\n              \"refId\": \"A\"\n
+    \           }\n          ],\n          \"title\": \"Quota\",\n          \"type\":
+    \"stat\"\n        }\n      ],\n      \"title\": \"Progress & Capacity\",\n      \"type\":
+    \"row\"\n    },\n    {\n      \"collapsed\": false,\n      \"datasource\": {\n        \"name\":
+    \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n      \"fieldConfig\":
+    {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"thresholds\"\n
+    \         },\n          \"mappings\": [],\n          \"max\": 100,\n          \"min\":
+    0,\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\"\n              },\n              {\n
+    \               \"color\": \"yellow\",\n                \"value\": 70\n              },\n
+    \             {\n                \"color\": \"red\",\n                \"value\":
+    85\n              }\n            ]\n          },\n          \"unit\": \"percent\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    1,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 34\n      },\n      \"id\":
+    101,\n      \"panels\": [],\n      \"title\": \"\U0001F4BB Resource Usage\",\n      \"type\":
+    \"row\"\n    },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n
+    \       \"type\": \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n
+    \         \"mappings\": [],\n          \"max\": 100,\n          \"min\": 0,\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              },\n
+    \             {\n                \"color\": \"yellow\",\n                \"value\":
+    70\n              },\n              {\n                \"color\": \"red\",\n                \"value\":
+    85\n              }\n            ]\n          },\n          \"unit\": \"percent\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    8,\n        \"w\": 8,\n        \"x\": 0,\n        \"y\": 35\n      },\n      \"id\":
+    9,\n      \"options\": {\n        \"displayMode\": \"gradient\",\n        \"minVizHeight\":
+    10,\n        \"minVizWidth\": 0,\n        \"orientation\": \"auto\",\n        \"reduceOptions\":
+    {\n          \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showThresholdLabels\":
+    false,\n        \"showThresholdMarkers\": true,\n        \"sizing\": \"auto\",\n
+    \       \"text\": {}\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sum(rate(container_cpu_usage_seconds_total{namespace=\\\"$namespace\\\",
+    container=\\\"sabnzbd\\\"}[5m])) / sum(kube_pod_container_resource_limits{resource=\\\"cpu\\\",
+    namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"}) * 100\",\n          \"refId\":
+    \"A\"\n        }\n      ],\n      \"title\": \"CPU Usage\",\n      \"type\": \"gauge\"\n
+    \   },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\":
+    \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"thresholds\"\n          },\n          \"mappings\": [],\n
+    \         \"max\": 100,\n          \"min\": 0,\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              },\n              {\n
+    \               \"color\": \"yellow\",\n                \"value\": 70\n              },\n
+    \             {\n                \"color\": \"red\",\n                \"value\":
+    85\n              }\n            ]\n          },\n          \"unit\": \"percent\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    8,\n        \"w\": 8,\n        \"x\": 8,\n        \"y\": 35\n      },\n      \"id\":
+    10,\n      \"options\": {\n        \"displayMode\": \"gradient\",\n        \"minVizHeight\":
+    10,\n        \"minVizWidth\": 0,\n        \"orientation\": \"auto\",\n        \"reduceOptions\":
+    {\n          \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showThresholdLabels\":
+    false,\n        \"showThresholdMarkers\": true,\n        \"sizing\": \"auto\",\n
+    \       \"text\": {}\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sum(container_memory_working_set_bytes{namespace=\\\"$namespace\\\",
+    container=\\\"sabnzbd\\\"}) / sum(kube_pod_container_resource_limits{resource=\\\"memory\\\",
+    namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"}) * 100\",\n          \"refId\":
+    \"A\"\n        }\n      ],\n      \"title\": \"Memory Usage\",\n      \"type\":
+    \"gauge\"\n    },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n
+    \       \"type\": \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n
+    \         \"mappings\": [],\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              },\n              {\n
+    \               \"color\": \"yellow\",\n                \"value\": 0.1\n              },\n
+    \             {\n                \"color\": \"red\",\n                \"value\":
+    0.5\n              }\n            ]\n          },\n          \"unit\": \"s\"\n        },\n
+    \       \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\":
+    8,\n        \"x\": 16,\n        \"y\": 35\n      },\n      \"id\": 33,\n      \"options\":
+    {\n        \"colorMode\": \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\":
+    \"auto\",\n        \"orientation\": \"auto\",\n        \"percentChangeColorMode\":
+    \"standard\",\n        \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sum(rate(container_cpu_cfs_throttled_seconds_total{namespace=\\\"$namespace\\\",
+    container=\\\"sabnzbd\\\"}[5m]))\",\n          \"refId\": \"A\"\n        }\n      ],\n
+    \     \"title\": \"CPU Throttling Rate\",\n      \"type\": \"stat\"\n    },\n    {\n
+    \     \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n
+    \     },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"palette-classic\"\n          },\n          \"custom\":
+    {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\": false,\n
+    \           \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\":
+    \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n
+    \           \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\":
+    {\n              \"legend\": false,\n              \"tooltip\": false,\n              \"viz\":
+    false\n            },\n            \"insertNulls\": false,\n            \"lineInterpolation\":
+    \"linear\",\n            \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"percent\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    8,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 43\n      },\n      \"id\":
+    12,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sum(rate(container_cpu_usage_seconds_total{namespace=\\\"$namespace\\\",
+    container=\\\"sabnzbd\\\"}[5m])) / sum(kube_pod_container_resource_limits{resource=\\\"cpu\\\",
+    namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"}) * 100\",\n          \"legendFormat\":
+    \"CPU Usage %\",\n          \"refId\": \"A\"\n        },\n        {\n          \"datasource\":
+    {\n            \"name\": \"Prometheus\",\n            \"type\": \"prometheus\"\n
+    \         },\n          \"expr\": \"max((kube_pod_container_resource_requests{resource=\\\"cpu\\\",
+    namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"} / kube_pod_container_resource_limits{resource=\\\"cpu\\\",
+    namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"}) * 100) by (namespace,
+    container)\",\n          \"legendFormat\": \"CPU Request\",\n          \"refId\":
+    \"B\"\n        },\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"100\",\n          \"legendFormat\": \"CPU Limit\",\n          \"refId\": \"C\"\n
+    \       }\n      ],\n      \"title\": \"CPU Usage Over Time\",\n      \"type\":
+    \"timeseries\"\n    },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n
+    \       \"type\": \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"palette-classic\"\n          },\n
+    \         \"custom\": {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\":
+    false,\n            \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n
+    \           \"axisPlacement\": \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\":
+    \"line\",\n            \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n
+    \           \"hideFrom\": {\n              \"legend\": false,\n              \"tooltip\":
+    false,\n              \"viz\": false\n            },\n            \"insertNulls\":
+    false,\n            \"lineInterpolation\": \"linear\",\n            \"lineWidth\":
+    1,\n            \"pointSize\": 5,\n            \"scaleDistribution\": {\n              \"type\":
+    \"linear\"\n            },\n            \"showPoints\": \"never\",\n            \"spanNulls\":
+    false,\n            \"stacking\": {\n              \"group\": \"A\",\n              \"mode\":
+    \"none\"\n            },\n            \"thresholdsStyle\": {\n              \"mode\":
+    \"off\"\n            }\n          },\n          \"mappings\": [],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              }\n
+    \           ]\n          },\n          \"unit\": \"bytes\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\":
+    12,\n        \"y\": 43\n      },\n      \"id\": 13,\n      \"options\": {\n        \"legend\":
+    {\n          \"calcs\": [\n            \"last\",\n            \"max\",\n            \"mean\"\n
+    \         ],\n          \"displayMode\": \"table\",\n          \"placement\": \"bottom\",\n
+    \         \"showLegend\": true\n        },\n        \"tooltip\": {\n          \"mode\":
+    \"multi\",\n          \"sort\": \"none\"\n        }\n      },\n      \"pluginVersion\":
+    \"10.0.0\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"sum(container_memory_working_set_bytes{namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"})\",\n
+    \         \"legendFormat\": \"Memory Used\",\n          \"refId\": \"A\"\n        },\n
+    \       {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sum(kube_pod_container_resource_limits{resource=\\\"memory\\\",
+    namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"})\",\n          \"legendFormat\":
+    \"Memory Limit\",\n          \"refId\": \"B\"\n        },\n        {\n          \"datasource\":
+    {\n            \"name\": \"Prometheus\",\n            \"type\": \"prometheus\"\n
+    \         },\n          \"expr\": \"sum(kube_pod_container_resource_requests{resource=\\\"memory\\\",
+    namespace=\\\"$namespace\\\", container=\\\"sabnzbd\\\"})\",\n          \"legendFormat\":
+    \"Memory Request\",\n          \"refId\": \"C\"\n        }\n      ],\n      \"title\":
+    \"Memory Usage Over Time\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"thresholds\"\n          },\n          \"mappings\": [],\n          \"max\": 100,\n
+    \         \"min\": 0,\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n
+    \           \"steps\": [\n              {\n                \"color\": \"green\",\n
+    \               \"value\": null\n              },\n              {\n                \"color\":
+    \"yellow\",\n                \"value\": 70\n              },\n              {\n
+    \               \"color\": \"red\",\n                \"value\": 80\n              }\n
+    \           ]\n          },\n          \"unit\": \"percent\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\":
+    0,\n        \"y\": 51\n      },\n      \"id\": 430,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"(kubelet_volume_stats_available_bytes{namespace=\\\"$namespace\\\",
+    persistentvolumeclaim=~\\\".*sabnzbd.*\\\"} / kubelet_volume_stats_capacity_bytes{namespace=\\\"$namespace\\\",
+    persistentvolumeclaim=~\\\".*sabnzbd.*\\\"}) * 100\",\n          \"refId\": \"A\"\n
+    \       }\n      ],\n      \"title\": \"PVC Available %\",\n      \"type\": \"stat\"\n
+    \   },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\":
+    \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"thresholds\"\n          },\n          \"mappings\": [],\n
+    \         \"max\": 100,\n          \"min\": 0,\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              },\n              {\n
+    \               \"color\": \"yellow\",\n                \"value\": 70\n              },\n
+    \             {\n                \"color\": \"red\",\n                \"value\":
+    80\n              }\n            ]\n          },\n          \"unit\": \"percent\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    4,\n        \"w\": 6,\n        \"x\": 6,\n        \"y\": 51\n      },\n      \"id\":
+    431,\n      \"options\": {\n        \"colorMode\": \"value\",\n        \"graphMode\":
+    \"area\",\n        \"justifyMode\": \"auto\",\n        \"orientation\": \"auto\",\n
+    \       \"percentChangeColorMode\": \"standard\",\n        \"reduceOptions\": {\n
+    \         \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showPercentChange\": false,\n
+    \       \"textMode\": \"auto\",\n        \"wideLayout\": true\n      },\n      \"pluginVersion\":
+    \"11.1.3\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"(kubelet_volume_stats_inodes_used{namespace=\\\"$namespace\\\", persistentvolumeclaim=~\\\".*sabnzbd.*\\\"}
+    / kubelet_volume_stats_inodes{namespace=\\\"$namespace\\\", persistentvolumeclaim=~\\\".*sabnzbd.*\\\"})
+    * 100\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"PVC
+    Inode Usage %\",\n      \"type\": \"stat\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"description\": \"Alerts: SabnzbdPVCHighUsage\",\n      \"fieldConfig\":
+    {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"thresholds\"\n
+    \         },\n          \"mappings\": [],\n          \"max\": 100,\n          \"min\":
+    0,\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              },\n              {\n                \"color\": \"yellow\",\n
+    \               \"value\": 70\n              },\n              {\n                \"color\":
+    \"red\",\n                \"value\": 80\n              }\n            ]\n          },\n
+    \         \"unit\": \"percent\"\n        },\n        \"overrides\": []\n      },\n
+    \     \"gridPos\": {\n        \"h\": 4,\n        \"w\": 6,\n        \"x\": 12,\n
+    \       \"y\": 51\n      },\n      \"id\": 15,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"(kubelet_volume_stats_used_bytes{persistentvolumeclaim=\\\"sabnzbd-config\\\",
+    namespace=\\\"$namespace\\\"} / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=\\\"sabnzbd-config\\\",
+    namespace=\\\"$namespace\\\"}) * 100\",\n          \"refId\": \"A\"\n        }\n
+    \     ],\n      \"title\": \"Config PVC Usage\",\n      \"type\": \"stat\"\n    },\n
+    \   {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\":
+    \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"thresholds\"\n          },\n          \"mappings\": [],\n
+    \         \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"bytes\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    4,\n        \"w\": 6,\n        \"x\": 18,\n        \"y\": 51\n      },\n      \"id\":
+    16,\n      \"options\": {\n        \"colorMode\": \"value\",\n        \"graphMode\":
+    \"area\",\n        \"justifyMode\": \"auto\",\n        \"orientation\": \"auto\",\n
+    \       \"percentChangeColorMode\": \"standard\",\n        \"reduceOptions\": {\n
+    \         \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showPercentChange\": false,\n
+    \       \"textMode\": \"auto\",\n        \"wideLayout\": true\n      },\n      \"pluginVersion\":
+    \"11.1.3\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"(sabnzbd_disk_total_bytes{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\",
+    folder=\\\"download\\\"} * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end()) - sabnzbd_disk_used_bytes{service=\\\"sabnzbd\\\", component=\\\"download-clients\\\",
+    folder=\\\"download\\\"} * on(pod) group_left() (kube_pod_status_phase{namespace=\\\"$namespace\\\",pod=~\\\"$pod_regex\\\",phase=\\\"Running\\\"}
+    @ end()))\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\":
+    \"Available Disk Space (Download)\",\n      \"type\": \"stat\"\n    },\n    {\n
+    \     \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n
+    \     },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"palette-classic\"\n          },\n          \"custom\":
+    {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\": false,\n
+    \           \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\":
+    \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n
+    \           \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\":
+    {\n              \"legend\": false,\n              \"tooltip\": false,\n              \"viz\":
+    false\n            },\n            \"insertNulls\": false,\n            \"lineInterpolation\":
+    \"linear\",\n            \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"Bps\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    6,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 55\n      },\n      \"id\":
+    421,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sum(rate(container_fs_reads_bytes_total{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}[5m]))\",\n          \"legendFormat\": \"Read IO\",\n
+    \         \"refId\": \"A\"\n        },\n        {\n          \"datasource\": {\n
+    \           \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n          },\n
+    \         \"editorMode\": \"code\",\n          \"expr\": \"sum(rate(container_fs_writes_bytes_total{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}[5m]))\",\n          \"hide\": false,\n          \"instant\":
+    false,\n          \"legendFormat\": \"Write IO\",\n          \"range\": true,\n
+    \         \"refId\": \"B\"\n        }\n      ],\n      \"title\": \"Filesystem Read
+    / Write IO\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"palette-classic\"\n          },\n          \"custom\": {\n            \"axisBorderShow\":
+    false,\n            \"axisCenteredZero\": false,\n            \"axisColorMode\":
+    \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\": \"auto\",\n
+    \           \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n            \"fillOpacity\":
+    10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\": {\n              \"legend\":
+    false,\n              \"tooltip\": false,\n              \"viz\": false\n            },\n
+    \           \"insertNulls\": false,\n            \"lineInterpolation\": \"linear\",\n
+    \           \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"ms\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    4,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 61\n      },\n      \"id\":
+    403,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"histogram_quantile(0.95,
+    sum(rate(istio_request_duration_milliseconds_bucket{destination_service_name=\\\"sabnzbd\\\",
+    destination_service_namespace=\\\"$namespace\\\"}[5m])) by (le))\",\n          \"legendFormat\":
+    \"p95 Response Time\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\":
+    \"Response Time (p95)\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"datasource\":
+    {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n
+    \     \"fieldConfig\": {\n        \"defaults\": {\n          \"color\": {\n            \"mode\":
+    \"thresholds\"\n          },\n          \"mappings\": [],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              }\n
+    \           ]\n          },\n          \"unit\": \"reqps\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 5,\n        \"w\": 6,\n        \"x\":
+    0,\n        \"y\": 65\n      },\n      \"id\": 401,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sum(rate(istio_requests_total{destination_service_name=\\\"sabnzbd\\\",
+    destination_service_namespace=\\\"$namespace\\\"}[5m]))\",\n          \"refId\":
+    \"A\"\n        }\n      ],\n      \"title\": \"Request Rate\",\n      \"type\":
+    \"stat\"\n    },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n
+    \       \"type\": \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"palette-classic\"\n          },\n
+    \         \"custom\": {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\":
+    false,\n            \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n
+    \           \"axisPlacement\": \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\":
+    \"line\",\n            \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n
+    \           \"hideFrom\": {\n              \"legend\": false,\n              \"tooltip\":
+    false,\n              \"viz\": false\n            },\n            \"insertNulls\":
+    false,\n            \"lineInterpolation\": \"linear\",\n            \"lineWidth\":
+    1,\n            \"pointSize\": 5,\n            \"scaleDistribution\": {\n              \"type\":
+    \"linear\"\n            },\n            \"showPoints\": \"never\",\n            \"spanNulls\":
+    false,\n            \"stacking\": {\n              \"group\": \"A\",\n              \"mode\":
+    \"none\"\n            },\n            \"thresholdsStyle\": {\n              \"mode\":
+    \"off\"\n            }\n          },\n          \"mappings\": [],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              }\n
+    \           ]\n          },\n          \"unit\": \"reqps\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 5,\n        \"w\": 18,\n        \"x\":
+    6,\n        \"y\": 65\n      },\n      \"id\": 402,\n      \"options\": {\n        \"legend\":
+    {\n          \"calcs\": [\n            \"last\",\n            \"max\",\n            \"mean\"\n
+    \         ],\n          \"displayMode\": \"table\",\n          \"placement\": \"bottom\",\n
+    \         \"showLegend\": true\n        },\n        \"tooltip\": {\n          \"mode\":
+    \"multi\",\n          \"sort\": \"none\"\n        }\n      },\n      \"pluginVersion\":
+    \"10.0.0\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"sum(rate(istio_requests_total{destination_service_name=\\\"sabnzbd\\\", destination_service_namespace=\\\"$namespace\\\"}[5m]))\",\n
+    \         \"legendFormat\": \"Request Rate (req/s)\",\n          \"refId\": \"A\"\n
+    \       }\n      ],\n      \"title\": \"Request Rate Over Time\",\n      \"type\":
+    \"timeseries\"\n    },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n
+    \       \"type\": \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n
+    \         \"mappings\": [],\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              },\n              {\n
+    \               \"color\": \"yellow\",\n                \"value\": 0.1\n              },\n
+    \             {\n                \"color\": \"red\",\n                \"value\":
+    1\n              }\n            ]\n          },\n          \"unit\": \"percent\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    5,\n        \"w\": 6,\n        \"x\": 0,\n        \"y\": 70\n      },\n      \"id\":
+    404,\n      \"options\": {\n        \"colorMode\": \"value\",\n        \"graphMode\":
+    \"area\",\n        \"justifyMode\": \"auto\",\n        \"orientation\": \"auto\",\n
+    \       \"percentChangeColorMode\": \"standard\",\n        \"reduceOptions\": {\n
+    \         \"calcs\": [\n            \"lastNotNull\"\n          ],\n          \"fields\":
+    \"\",\n          \"values\": false\n        },\n        \"showPercentChange\": false,\n
+    \       \"textMode\": \"auto\",\n        \"wideLayout\": true\n      },\n      \"pluginVersion\":
+    \"11.1.3\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"(sum(rate(istio_requests_total{destination_service_name=\\\"sabnzbd\\\", destination_service_namespace=\\\"$namespace\\\",
+    response_code=~\\\"5..\\\"}[5m])) / sum(rate(istio_requests_total{destination_service_name=\\\"sabnzbd\\\",
+    destination_service_namespace=\\\"$namespace\\\"}[5m]))) * 100\",\n          \"refId\":
+    \"A\"\n        }\n      ],\n      \"title\": \"Error Rate\",\n      \"type\": \"stat\"\n
+    \   },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\":
+    \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"palette-classic\"\n          },\n          \"custom\":
+    {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\": false,\n
+    \           \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n            \"axisPlacement\":
+    \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\": \"line\",\n
+    \           \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n            \"hideFrom\":
+    {\n              \"legend\": false,\n              \"tooltip\": false,\n              \"viz\":
+    false\n            },\n            \"insertNulls\": false,\n            \"lineInterpolation\":
+    \"linear\",\n            \"lineWidth\": 1,\n            \"pointSize\": 5,\n            \"scaleDistribution\":
+    {\n              \"type\": \"linear\"\n            },\n            \"showPoints\":
+    \"never\",\n            \"spanNulls\": false,\n            \"stacking\": {\n              \"group\":
+    \"A\",\n              \"mode\": \"none\"\n            },\n            \"thresholdsStyle\":
+    {\n              \"mode\": \"off\"\n            }\n          },\n          \"mappings\":
+    [],\n          \"thresholds\": {\n            \"mode\": \"absolute\",\n            \"steps\":
+    [\n              {\n                \"color\": \"green\",\n                \"value\":
+    null\n              }\n            ]\n          },\n          \"unit\": \"percent\"\n
+    \       },\n        \"overrides\": []\n      },\n      \"gridPos\": {\n        \"h\":
+    5,\n        \"w\": 18,\n        \"x\": 6,\n        \"y\": 70\n      },\n      \"id\":
+    405,\n      \"options\": {\n        \"legend\": {\n          \"calcs\": [\n            \"last\",\n
+    \           \"max\",\n            \"mean\"\n          ],\n          \"displayMode\":
+    \"table\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\",\n          \"sort\":
+    \"none\"\n        }\n      },\n      \"pluginVersion\": \"10.0.0\",\n      \"targets\":
+    [\n        {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"(sum(rate(istio_requests_total{destination_service_name=\\\"sabnzbd\\\",
+    destination_service_namespace=\\\"$namespace\\\", response_code=~\\\"5..\\\"}[5m]))
+    / sum(rate(istio_requests_total{destination_service_name=\\\"sabnzbd\\\", destination_service_namespace=\\\"$namespace\\\"}[5m])))
+    * 100\",\n          \"legendFormat\": \"Error Rate (%)\",\n          \"refId\":
+    \"A\"\n        }\n      ],\n      \"title\": \"Error Rate Over Time\",\n      \"type\":
+    \"timeseries\"\n    },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n
+    \       \"type\": \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"palette-classic\"\n          },\n
+    \         \"custom\": {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\":
+    false,\n            \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n
+    \           \"axisPlacement\": \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\":
+    \"line\",\n            \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n
+    \           \"hideFrom\": {\n              \"legend\": false,\n              \"tooltip\":
+    false,\n              \"viz\": false\n            },\n            \"insertNulls\":
+    false,\n            \"lineInterpolation\": \"linear\",\n            \"lineWidth\":
+    1,\n            \"pointSize\": 5,\n            \"scaleDistribution\": {\n              \"type\":
+    \"linear\"\n            },\n            \"showPoints\": \"never\",\n            \"spanNulls\":
+    false,\n            \"stacking\": {\n              \"group\": \"A\",\n              \"mode\":
+    \"none\"\n            },\n            \"thresholdsStyle\": {\n              \"mode\":
+    \"off\"\n            }\n          },\n          \"mappings\": [],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              }\n
+    \           ]\n          },\n          \"unit\": \"Bps\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\":
+    0,\n        \"y\": 75\n      },\n      \"id\": 411,\n      \"options\": {\n        \"legend\":
+    {\n          \"calcs\": [\n            \"last\",\n            \"max\",\n            \"mean\"\n
+    \         ],\n          \"displayMode\": \"table\",\n          \"placement\": \"bottom\",\n
+    \         \"showLegend\": true\n        },\n        \"tooltip\": {\n          \"mode\":
+    \"multi\",\n          \"sort\": \"none\"\n        }\n      },\n      \"pluginVersion\":
+    \"10.0.0\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"sum(rate(container_network_receive_bytes_total{pod=~\\\"$pod_regex\\\", namespace=\\\"$namespace\\\"}[5m]))\",\n
+    \         \"legendFormat\": \"rx\",\n          \"refId\": \"A\"\n        },\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sum(rate(container_network_transmit_bytes_total{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}[5m]))\",\n          \"legendFormat\": \"tx\",\n          \"refId\":
+    \"B\"\n        }\n      ],\n      \"title\": \"Network Throughput\",\n      \"type\":
+    \"timeseries\"\n    },\n    {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n
+    \       \"type\": \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"palette-classic\"\n          },\n
+    \         \"custom\": {\n            \"axisBorderShow\": false,\n            \"axisCenteredZero\":
+    false,\n            \"axisColorMode\": \"text\",\n            \"axisLabel\": \"\",\n
+    \           \"axisPlacement\": \"auto\",\n            \"barAlignment\": 0,\n            \"drawStyle\":
+    \"line\",\n            \"fillOpacity\": 10,\n            \"gradientMode\": \"none\",\n
+    \           \"hideFrom\": {\n              \"legend\": false,\n              \"tooltip\":
+    false,\n              \"viz\": false\n            },\n            \"insertNulls\":
+    false,\n            \"lineInterpolation\": \"linear\",\n            \"lineWidth\":
+    1,\n            \"pointSize\": 5,\n            \"scaleDistribution\": {\n              \"type\":
+    \"linear\"\n            },\n            \"showPoints\": \"never\",\n            \"spanNulls\":
+    false,\n            \"stacking\": {\n              \"group\": \"A\",\n              \"mode\":
+    \"none\"\n            },\n            \"thresholdsStyle\": {\n              \"mode\":
+    \"off\"\n            }\n          },\n          \"mappings\": [],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              }\n
+    \           ]\n          },\n          \"unit\": \"short\"\n        },\n        \"overrides\":
+    []\n      },\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\":
+    12,\n        \"y\": 75\n      },\n      \"id\": 412,\n      \"options\": {\n        \"legend\":
+    {\n          \"calcs\": [\n            \"last\",\n            \"max\",\n            \"mean\"\n
+    \         ],\n          \"displayMode\": \"table\",\n          \"placement\": \"bottom\",\n
+    \         \"showLegend\": true\n        },\n        \"tooltip\": {\n          \"mode\":
+    \"multi\",\n          \"sort\": \"none\"\n        }\n      },\n      \"pluginVersion\":
+    \"10.0.0\",\n      \"targets\": [\n        {\n          \"datasource\": {\n            \"name\":
+    \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n          \"expr\":
+    \"sum(rate(container_network_receive_errors_total{pod=~\\\"$pod_regex\\\", namespace=\\\"$namespace\\\"}[5m]))\",\n
+    \         \"legendFormat\": \"rx_err\",\n          \"refId\": \"A\"\n        },\n
+    \       {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"sum(rate(container_network_transmit_errors_total{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}[5m]))\",\n          \"legendFormat\": \"tx_err\",\n
+    \         \"refId\": \"B\"\n        },\n        {\n          \"datasource\": {\n
+    \           \"name\": \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n
+    \         \"expr\": \"sum(rate(container_network_receive_packets_dropped_total{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}[5m]))\",\n          \"legendFormat\": \"rx_drop\",\n
+    \         \"refId\": \"C\"\n        },\n        {\n          \"datasource\": {\n
+    \           \"name\": \"Prometheus\",\n            \"type\": \"prometheus\"\n          },\n
+    \         \"expr\": \"sum(rate(container_network_transmit_packets_dropped_total{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}[5m]))\",\n          \"legendFormat\": \"tx_drop\",\n
+    \         \"refId\": \"D\"\n        }\n      ],\n      \"title\": \"Network Errors
+    / Drops\",\n      \"type\": \"timeseries\"\n    },\n    {\n      \"collapsed\":
+    true,\n      \"gridPos\": {\n        \"h\": 1,\n        \"w\": 24,\n        \"x\":
+    0,\n        \"y\": 83\n      },\n      \"id\": 440,\n      \"panels\": [],\n      \"title\":
+    \"\U0001F9E0 Kubernetes Diagnostics\",\n      \"type\": \"row\"\n    },\n    {\n
+    \     \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\": \"prometheus\"\n
+    \     },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"thresholds\"\n          },\n          \"custom\": {\n
+    \           \"align\": \"auto\",\n            \"cellOptions\": {\n              \"type\":
+    \"auto\"\n            },\n            \"inspect\": false\n          },\n          \"mappings\":
+    [\n            {\n              \"id\": \"health-type\",\n              \"options\":
+    {\n                \"error\": {\n                  \"color\": \"red\",\n                  \"text\":
+    \"Error\"\n                },\n                \"warning\": {\n                  \"color\":
+    \"yellow\",\n                  \"text\": \"Warning\"\n                }\n              },\n
+    \             \"type\": \"value\"\n            }\n          ],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              },\n
+    \             {\n                \"color\": \"yellow\",\n                \"value\":
+    1\n              },\n              {\n                \"color\": \"red\",\n                \"value\":
+    2\n              }\n            ]\n          },\n          \"unit\": \"short\"\n
+    \       },\n        \"overrides\": [\n          {\n            \"matcher\": {\n
+    \             \"id\": \"byName\",\n              \"options\": \"Type\"\n            },\n
+    \           \"properties\": [\n              {\n                \"id\": \"mappings\",\n
+    \               \"value\": {\n                  \"options\": {\n                    \"error\":
+    {\n                      \"color\": \"red\",\n                      \"text\": \"Error\"\n
+    \                   },\n                    \"warning\": {\n                      \"color\":
+    \"yellow\",\n                      \"text\": \"Warning\"\n                    }\n
+    \                 },\n                  \"type\": \"value\"\n                }\n
+    \             }\n            ]\n          }\n        ]\n      },\n      \"gridPos\":
+    {\n        \"h\": 5,\n        \"w\": 20,\n        \"x\": 0,\n        \"y\": 84\n
+    \     },\n      \"id\": 441,\n      \"options\": {\n        \"cellHeight\": \"sm\",\n
+    \       \"footer\": {\n          \"countRows\": false,\n          \"fields\": \"\",\n
+    \         \"reducer\": [\n            \"sum\"\n          ],\n          \"show\":
+    false\n        },\n        \"showHeader\": true,\n        \"sortBy\": [\n          {\n
+    \           \"desc\": true,\n            \"displayName\": \"Value\"\n          }\n
+    \       ]\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n
+    \       {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"kube_pod_container_status_waiting_reason{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}\",\n          \"format\": \"table\",\n          \"instant\":
+    true,\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Container
+    Waiting Reasons\",\n      \"transformations\": [\n        {\n          \"id\": \"organize\",\n
+    \         \"options\": {\n            \"excludeByName\": {\n              \"__name__\":
+    true,\n              \"component\": true,\n              \"service\": true,\n              \"url\":
+    true,\n              \"wikiurl\": true\n            },\n            \"indexByName\":
+    {\n              \"Message\": 2,\n              \"Source\": 1,\n              \"Type\":
+    0,\n              \"Value\": 3\n            },\n            \"renameByName\": {\n
+    \             \"Value\": \"Value\",\n              \"message\": \"Message\",\n              \"source\":
+    \"Source\",\n              \"type\": \"Type\"\n            }\n          }\n        }\n
+    \     ],\n      \"type\": \"table\"\n    },\n    {\n      \"datasource\": {\n        \"name\":
+    \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n      \"description\":
+    \"Alerts: SabnzbdPodRestarting\",\n      \"fieldConfig\": {\n        \"defaults\":
+    {\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n
+    \         \"mappings\": [],\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              }\n            ]\n          },\n
+    \         \"unit\": \"short\"\n        },\n        \"overrides\": []\n      },\n
+    \     \"gridPos\": {\n        \"h\": 5,\n        \"w\": 4,\n        \"x\": 20,\n
+    \       \"y\": 84\n      },\n      \"id\": 14,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"sum(increase(kube_pod_container_status_restarts_total{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}[1h]) * on(pod, namespace) group_left() kube_pod_info{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}) by (namespace)\",\n          \"refId\": \"A\"\n        }\n
+    \     ],\n      \"title\": \"Pod Restarts (1h)\",\n      \"type\": \"stat\"\n    },\n
+    \   {\n      \"datasource\": {\n        \"name\": \"Prometheus\",\n        \"type\":
+    \"prometheus\"\n      },\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"color\":
+    {\n            \"mode\": \"thresholds\"\n          },\n          \"custom\": {\n
+    \           \"align\": \"auto\",\n            \"cellOptions\": {\n              \"type\":
+    \"auto\"\n            },\n            \"inspect\": false\n          },\n          \"mappings\":
+    [\n            {\n              \"id\": \"health-type\",\n              \"options\":
+    {\n                \"error\": {\n                  \"color\": \"red\",\n                  \"text\":
+    \"Error\"\n                },\n                \"warning\": {\n                  \"color\":
+    \"yellow\",\n                  \"text\": \"Warning\"\n                }\n              },\n
+    \             \"type\": \"value\"\n            }\n          ],\n          \"thresholds\":
+    {\n            \"mode\": \"absolute\",\n            \"steps\": [\n              {\n
+    \               \"color\": \"green\",\n                \"value\": null\n              },\n
+    \             {\n                \"color\": \"yellow\",\n                \"value\":
+    1\n              },\n              {\n                \"color\": \"red\",\n                \"value\":
+    2\n              }\n            ]\n          },\n          \"unit\": \"short\"\n
+    \       },\n        \"overrides\": [\n          {\n            \"matcher\": {\n
+    \             \"id\": \"byName\",\n              \"options\": \"Type\"\n            },\n
+    \           \"properties\": [\n              {\n                \"id\": \"mappings\",\n
+    \               \"value\": {\n                  \"options\": {\n                    \"error\":
+    {\n                      \"color\": \"red\",\n                      \"text\": \"Error\"\n
+    \                   },\n                    \"warning\": {\n                      \"color\":
+    \"yellow\",\n                      \"text\": \"Warning\"\n                    }\n
+    \                 },\n                  \"type\": \"value\"\n                }\n
+    \             }\n            ]\n          }\n        ]\n      },\n      \"gridPos\":
+    {\n        \"h\": 5,\n        \"w\": 20,\n        \"x\": 0,\n        \"y\": 89\n
+    \     },\n      \"id\": 442,\n      \"options\": {\n        \"cellHeight\": \"sm\",\n
+    \       \"footer\": {\n          \"countRows\": false,\n          \"fields\": \"\",\n
+    \         \"reducer\": [\n            \"sum\"\n          ],\n          \"show\":
+    false\n        },\n        \"showHeader\": true,\n        \"sortBy\": [\n          {\n
+    \           \"desc\": true,\n            \"displayName\": \"Value\"\n          }\n
+    \       ]\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n
+    \       {\n          \"datasource\": {\n            \"name\": \"Prometheus\",\n
+    \           \"type\": \"prometheus\"\n          },\n          \"expr\": \"kube_pod_container_status_terminated_reason{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}\",\n          \"format\": \"table\",\n          \"instant\":
+    true,\n          \"refId\": \"A\"\n        }\n      ],\n      \"title\": \"Container
+    Terminated Reasons\",\n      \"transformations\": [\n        {\n          \"id\":
+    \"organize\",\n          \"options\": {\n            \"excludeByName\": {\n              \"__name__\":
+    true,\n              \"component\": true,\n              \"service\": true,\n              \"url\":
+    true,\n              \"wikiurl\": true\n            },\n            \"indexByName\":
+    {\n              \"Message\": 2,\n              \"Source\": 1,\n              \"Type\":
+    0,\n              \"Value\": 3\n            },\n            \"renameByName\": {\n
+    \             \"Value\": \"Value\",\n              \"message\": \"Message\",\n              \"source\":
+    \"Source\",\n              \"type\": \"Type\"\n            }\n          }\n        }\n
+    \     ],\n      \"type\": \"table\"\n    },\n    {\n      \"datasource\": {\n        \"name\":
+    \"Prometheus\",\n        \"type\": \"prometheus\"\n      },\n      \"fieldConfig\":
+    {\n        \"defaults\": {\n          \"color\": {\n            \"mode\": \"thresholds\"\n
+    \         },\n          \"mappings\": [],\n          \"thresholds\": {\n            \"mode\":
+    \"absolute\",\n            \"steps\": [\n              {\n                \"color\":
+    \"green\",\n                \"value\": null\n              }\n            ]\n          },\n
+    \         \"unit\": \"short\"\n        },\n        \"overrides\": []\n      },\n
+    \     \"gridPos\": {\n        \"h\": 5,\n        \"w\": 4,\n        \"x\": 20,\n
+    \       \"y\": 89\n      },\n      \"id\": 443,\n      \"options\": {\n        \"colorMode\":
+    \"value\",\n        \"graphMode\": \"area\",\n        \"justifyMode\": \"auto\",\n
+    \       \"orientation\": \"auto\",\n        \"percentChangeColorMode\": \"standard\",\n
+    \       \"reduceOptions\": {\n          \"calcs\": [\n            \"lastNotNull\"\n
+    \         ],\n          \"fields\": \"\",\n          \"values\": false\n        },\n
+    \       \"showPercentChange\": false,\n        \"textMode\": \"auto\",\n        \"wideLayout\":
+    true\n      },\n      \"pluginVersion\": \"11.1.3\",\n      \"targets\": [\n        {\n
+    \         \"datasource\": {\n            \"name\": \"Prometheus\",\n            \"type\":
+    \"prometheus\"\n          },\n          \"expr\": \"kube_pod_container_status_last_terminated_exitcode{pod=~\\\"$pod_regex\\\",
+    namespace=\\\"$namespace\\\"}\",\n          \"refId\": \"A\"\n        }\n      ],\n
+    \     \"title\": \"Last Terminated Exit Code\",\n      \"type\": \"stat\"\n    }\n
+    \ ],\n  \"refresh\": \"30s\",\n  \"schemaVersion\": 39,\n  \"tags\": [\n    \"sabnzbd\",\n
+    \   \"download-clients\",\n    \"monitoring\",\n    \"exportarr\",\n    \"sabnzbd\",\n
+    \   \"download-clients\",\n    \"monitoring\",\n    \"exportarr\"\n  ],\n  \"templating\":
+    {\n    \"list\": [\n      {\n        \"hide\": 2,\n        \"name\": \"namespace\",\n
+    \       \"query\": \"download-clients\",\n        \"skipUrlSync\": false,\n        \"type\":
+    \"constant\"\n      },\n      {\n        \"hide\": 2,\n        \"name\": \"deployment\",\n
+    \       \"query\": \"sabnzbd\",\n        \"skipUrlSync\": false,\n        \"type\":
+    \"constant\"\n      },\n      {\n        \"hide\": 2,\n        \"name\": \"pod_regex\",\n
+    \       \"query\": \"sabnzbd-.*\",\n        \"skipUrlSync\": false,\n        \"type\":
+    \"constant\"\n      }\n    ]\n  },\n  \"time\": {\n    \"from\": \"now-6h\",\n    \"to\":
+    \"now\"\n  },\n  \"timepicker\": {},\n  \"timezone\": \"\",\n  \"title\": \"SABnzbd
+    Dashboard\",\n  \"uid\": \"sabnzbd-download-clients\",\n  \"version\": 1,\n  \"weekStart\":
+    \"\"\n}"
+---
+# Source: sabnzbd/charts/app-chart/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sabnzbd-config
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "pvc"
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: sabnzbd/charts/app-chart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sabnzbd-http
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: service-http
+  annotations:
+    description: SABnzbd media center HTTP service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+---
+# Source: sabnzbd/charts/app-chart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sabnzbd-metrics
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: service-metrics
+  annotations:
+    description: SABnzbd metrics service
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+---
+# Source: sabnzbd/charts/app-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sabnzbd
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "deployment"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: sabnzbd
+      app.kubernetes.io/name: sabnzbd
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: sabnzbd
+        app.kubernetes.io/name: sabnzbd
+        app.kubernetes.io/version: 4.5.3
+        helm.sh/chart: app-chart-0.0.1
+        app.kubernetes.io/component: downloader
+        app.kubernetes.io/part-of: download-clients
+        logging.kubernetes.io/component: download-clients
+        logging.kubernetes.io/service: sabnzbd
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        fsGroup: 1010
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups: []
+      serviceAccountName: sabnzbd
+      dnsPolicy: ClusterFirst
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      containers:
+        - name: exportarr
+          image: ghcr.io/orhayoun/exportarr:v2.3.1@sha256:2650f6a501b1d691daf5dfe758068f44336d0bb1d443f9db2c94900244d423bc
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          args:
+            - sabnzbd
+          env:
+            - name: URL
+              value: http://localhost:8080
+            - name: CONFIG
+              value: /config/sabnzbd.ini
+            - name: PORT
+              value: "9100"
+            - name: ENABLE_ADDITIONAL_METRICS
+              value: "false"
+            - name: ENABLE_UNKNOWN_QUEUE_ITEMS
+              value: "false"
+          volumeMounts:
+            - mountPath: /config
+              name: config
+              readOnly: true
+          resources:
+            limits:
+              cpu: 100m
+              ephemeral-storage: 10Mi
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              ephemeral-storage: 10Mi
+              memory: 32Mi
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /metrics
+              port: metrics
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /metrics
+              port: metrics
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /metrics
+              port: metrics
+              scheme: HTTP
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            appArmorProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 65534
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+        - name: sabnzbd
+          image: ghcr.io/runlix/sabnzbd:release-4.5.5-latest@sha256:826caa03179efed2d9ebb636d1cfbe50ba9a7982d467aa3288ebdb6c52c7e803
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: TZ
+              value: UTC
+          volumeMounts:
+            - mountPath: /config
+              name: config
+            - mountPath: /backup
+              name: backup
+            - mountPath: /downloads
+              name: downloads
+            - mountPath: /media
+              name: media
+            - mountPath: /tmp
+              name: tmp
+          resources:
+            limits:
+              cpu: 1000m
+              ephemeral-storage: 2Gi
+              memory: 2Gi
+            requests:
+              cpu: 1000m
+              ephemeral-storage: 2Gi
+              memory: 256Mi
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 10
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            appArmorProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1010
+            runAsNonRoot: true
+            runAsUser: 1010
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        -
+          name: config
+          persistentVolumeClaim:
+            claimName: sabnzbd-config
+        -
+          name: downloads
+          nfs:
+            path: /mnt/vol1/media-center/downloads
+            server: snorlax.orhayoun.com
+        -
+          name: media
+          nfs:
+            path: /mnt/vol1/media-center/media
+            server: snorlax.orhayoun.com
+        -
+          name: backup
+          nfs:
+            path: /mnt/vol1/media-center/backup/sabnzbd
+            server: snorlax.orhayoun.com
+        -
+          emptyDir:
+            sizeLimit: 1Gi
+          name: tmp
+---
+# Source: sabnzbd/charts/app-chart/templates/authorizationpolicy.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sabnzbd-homeassistant
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "authorization-policy"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: sabnzbd
+      app.kubernetes.io/name: sabnzbd
+  action: ALLOW
+  rules:
+    - from:
+      - source:
+          principals:
+          - cluster.local/ns/homeassistant/sa/homeassistant-home-assistant
+      to:
+      - operation:
+          ports:
+          - "8080"
+---
+# Source: sabnzbd/charts/app-chart/templates/authorizationpolicy.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sabnzbd-ingress
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "authorization-policy"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: sabnzbd
+      app.kubernetes.io/name: sabnzbd
+  action: ALLOW
+  rules:
+    - from:
+      - source:
+          principals:
+          - cluster.local/ns/istio-system/sa/shared-platform-gateway-istio
+      to:
+      - operation:
+          ports:
+          - "8080"
+---
+# Source: sabnzbd/charts/app-chart/templates/authorizationpolicy.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sabnzbd-media-services
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "authorization-policy"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: sabnzbd
+      app.kubernetes.io/name: sabnzbd
+  action: ALLOW
+  rules:
+    - from:
+      - source:
+          principals:
+          - cluster.local/ns/media-center/sa/radarr
+          - cluster.local/ns/media-center/sa/sonarr
+      to:
+      - operation:
+          ports:
+          - "8080"
+---
+# Source: sabnzbd/charts/app-chart/templates/authorizationpolicy.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: sabnzbd-prometheus
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "authorization-policy"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: sabnzbd
+      app.kubernetes.io/name: sabnzbd
+  action: ALLOW
+  rules:
+    - from:
+      - source:
+          principals:
+          - cluster.local/ns/monitoring/sa/prometheus-kube-prometheus-prometheus
+      to:
+      - operation:
+          ports:
+          - "9100"
+---
+# Source: sabnzbd/charts/app-chart/templates/destinationrule.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sabnzbd
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "destination-rule"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  host: sabnzbd-http
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 10
+      tcp:
+        maxConnections: 200
+    outlierDetection:
+      baseEjectionTime: 15s
+      consecutive5xxErrors: 5
+      interval: 30s
+      maxEjectionPercent: 50
+---
+# Source: sabnzbd/charts/app-chart/templates/httproute.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: sabnzbd-route
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "http-route"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  parentRefs:
+    - name: shared-platform-gateway
+      namespace: istio-system
+      kind: Gateway
+      group: gateway.networking.k8s.io
+      sectionName: https
+  hostnames:
+    - sabnzbd-k8s.orhayoun.com
+  rules:
+    -
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: sabnzbd-http
+          port: 8080
+          weight: 100
+---
+# Source: sabnzbd/charts/app-chart/templates/httproute.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: sabnzbd-http-redirect
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "http-route"
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  parentRefs:
+    - name: shared-platform-gateway
+      namespace: istio-system
+      kind: Gateway
+      group: gateway.networking.k8s.io
+      sectionName: http
+  hostnames:
+    - sabnzbd-k8s.orhayoun.com
+  rules:
+    -
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - requestRedirect:
+            scheme: https
+            statusCode: 301
+          type: RequestRedirect
+---
+# Source: sabnzbd/charts/app-chart/templates/prometheusrule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sabnzbd
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "prometheus-rule"
+
+spec:
+  groups:
+    - name: sabnzbd.rules
+      rules:
+        - alert: SabnzbdDown
+          annotations:
+            description: Prometheus cannot scrape sabnzbd metrics (job sabnzbd/sabnzbd-metrics)
+              for more than 5 minutes.
+            summary: Sabnzbd metrics target is down
+          expr: up{job=~"sabnzbd|sabnzbd-metrics"} == 0
+          for: 5m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: critical
+        - alert: SabnzbdQueueHigh
+          annotations:
+            description: Sabnzbd has more than 100 items in the download queue for more than
+              10 minutes.
+            summary: Sabnzbd queue is high
+          expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 100
+          for: 10m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+        - alert: SabnzbdQueueWarnings
+          annotations:
+            description: Sabnzbd reports queue warnings for more than 15 minutes. Inspect
+              SABnzbd UI/logs for details.
+            summary: Sabnzbd queue warnings detected
+          expr: sabnzbd_queue_warnings{service="sabnzbd", component="download-clients"} >
+            0
+          for: 15m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+        - alert: SabnzbdDownloadDiskFreeLow
+          annotations:
+            description: Sabnzbd reports less than 20GiB free in folder=download for more
+              than 5 minutes.
+            summary: Sabnzbd download disk free space is low
+          expr: (sabnzbd_disk_total_bytes{service="sabnzbd", component="download-clients",
+            folder="download"} - sabnzbd_disk_used_bytes{service="sabnzbd", component="download-clients",
+            folder="download"}) < 20 * 1024 * 1024 * 1024
+          for: 5m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+            volume_type: download
+        - alert: SabnzbdCompleteDiskFreeLow
+          annotations:
+            description: Sabnzbd reports less than 20GiB free in folder=complete for more
+              than 5 minutes.
+            summary: Sabnzbd complete disk free space is low
+          expr: (sabnzbd_disk_total_bytes{service="sabnzbd", component="download-clients",
+            folder="complete"} - sabnzbd_disk_used_bytes{service="sabnzbd", component="download-clients",
+            folder="complete"}) < 20 * 1024 * 1024 * 1024
+          for: 5m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+            volume_type: complete
+        - alert: SabnzbdExportarrRestarting
+          annotations:
+            description: Exportarr sidecar container in Sabnzbd pod {{ $labels.pod }} has
+              restarted more than 2 times in the last hour.
+            summary: Sabnzbd Exportarr sidecar restarting frequently
+          expr: increase(kube_pod_container_status_restarts_total{namespace="download-clients",
+            pod=~"sabnzbd-.*", container=~"exportarr|exporter"}[1h]) > 2
+          for: 0m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+            sidecar: exportarr
+        - alert: SabnzbdExporterNotReady
+          annotations:
+            description: Exportarr container in Sabnzbd pod {{ $labels.pod }} is not ready
+              for more than 2 minutes. Check exporter container logs.
+            summary: Sabnzbd Exportarr sidecar is not ready
+          expr: |
+            kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"} > 0
+            and
+            kube_pod_container_status_ready{container=~"exportarr|exporter", pod=~"sabnzbd-.*", namespace="download-clients"} == 0
+          for: 2m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+            sidecar: exportarr
+        - alert: SabnzbdExportarrMetricsUnavailable
+          annotations:
+            description: Sabnzbd pod is running but Exportarr metrics are missing for more
+              than 5 minutes. Check Exportarr container logs in pod {{ $labels.pod }}.
+            summary: Sabnzbd Exportarr metrics endpoint unavailable
+          expr: kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"}
+            > 0 and absent_over_time(sabnzbd_info{service="sabnzbd", component="download-clients"}[5m])
+          for: 5m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+            sidecar: exportarr
+        - alert: SabnzbdAuthorizationPolicyDenials
+          annotations:
+            description: Sabnzbd is experiencing authorization policy denials. {{ $value }}
+              requests/sec are being denied.
+            summary: Sabnzbd authorization policy denials detected
+          expr: sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients",
+            destination_service_name="sabnzbd", request_protocol="http", response_code="403",
+            response_flags="SEC"}[5m])) > 0
+          for: 2m
+          labels:
+            component: download-clients
+            security: authorization
+            service: sabnzbd
+            severity: warning
+        - alert: SabnzbdHighAuthorizationDenialRate
+          annotations:
+            description: Sabnzbd has a high authorization denial rate ({{ $value }}% of requests
+              denied). This may indicate a misconfigured authorization policy.
+            summary: Sabnzbd high authorization denial rate
+          expr: |
+            (
+              sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http", response_code="403", response_flags="SEC"}[5m]))
+              /
+              sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http"}[5m]))
+            ) * 100 > 5
+          for: 5m
+          labels:
+            component: download-clients
+            security: authorization
+            service: sabnzbd
+            severity: critical
+        - alert: SabnzbdStalledDownloads
+          annotations:
+            description: Sabnzbd has items in queue but average download speed is < 1KiB/s
+              for 10 minutes.
+            summary: Sabnzbd downloads appear stalled
+          expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 0
+            and avg_over_time(sabnzbd_speed_bps{service="sabnzbd", component="download-clients"}[10m])
+            < 1024
+          for: 10m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+        - alert: SabnzbdProviderSuccessRateLow
+          annotations:
+            description: Overall SABnzbd server article success rate < 95% for 15 minutes
+              (provider/indexer issues likely).
+            summary: Sabnzbd provider success rate is low
+          expr: (sum(increase(sabnzbd_server_articles_success{service="sabnzbd", component="download-clients"}[15m]))
+            / sum(increase(sabnzbd_server_articles_total{service="sabnzbd", component="download-clients"}[15m])))
+            < 0.95
+          for: 15m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+        - alert: SabnzbdExportarrScrapeSlow
+          annotations:
+            description: Exportarr scrape duration > 2s (max over 10m). Check SAB API responsiveness
+              and exporter logs.
+            summary: Sabnzbd exporter scrape is slow
+          expr: max_over_time(sabnzbd_scrape_duration_seconds{service="sabnzbd", component="download-clients"}[10m])
+            > 2
+          for: 10m
+          labels:
+            component: download-clients
+            service: sabnzbd
+            severity: warning
+            sidecar: exportarr
+        - alert: SabnzbdHighCPUUtilization
+          annotations:
+            description: Sabnzbd CPU usage is above 80% of requested CPU for more than 10
+              minutes (value={{ $value }}%).
+            summary: Sabnzbd CPU utilization is high
+          expr: |
+            (
+              sum(rate(container_cpu_usage_seconds_total{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"}[5m]))
+              /
+              sum(kube_pod_container_resource_requests{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="cpu"})
+            ) * 100 > 80
+          for: 10m
+          labels:
+            component: download-clients
+            resource: cpu
+            service: sabnzbd
+            severity: warning
+        - alert: SabnzbdHighMemoryUtilization
+          annotations:
+            description: Sabnzbd memory working set is above 85% of memory limit for more
+              than 10 minutes (value={{ $value }}%).
+            summary: Sabnzbd memory utilization is high
+          expr: |
+            (
+              max(container_memory_working_set_bytes{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"})
+              /
+              max(kube_pod_container_resource_limits{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="memory"})
+            ) * 100 > 85
+          for: 10m
+          labels:
+            component: download-clients
+            resource: memory
+            service: sabnzbd
+            severity: warning
+---
+# Source: sabnzbd/charts/app-chart/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sabnzbd
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: sabnzbd
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: app-chart-0.0.1
+    app.kubernetes.io/component: "servicemonitor"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: service-metrics
+      app.kubernetes.io/instance: sabnzbd
+      app.kubernetes.io/name: sabnzbd
+  namespaceSelector:
+    matchNames:
+    - download-clients
+  endpoints:
+    - port: metrics
+      interval: 10s
+      scrapeTimeout: 5s
+      path: /metrics
+      honorLabels: true
+      relabelings:
+        - action: replace
+          sourceLabels:
+          - __meta_kubernetes_namespace
+          targetLabel: namespace
+        - action: replace
+          sourceLabels:
+          - __meta_kubernetes_pod_name
+          targetLabel: instance
+      metricRelabelings:
+        - action: replace
+          replacement: sabnzbd
+          targetLabel: service
+        - action: replace
+          replacement: download-clients
+          targetLabel: component
