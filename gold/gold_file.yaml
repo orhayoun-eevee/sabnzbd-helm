@@ -4,7 +4,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: sabnzbd-default
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -86,7 +86,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: sabnzbd
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -103,7 +103,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: sabnzbd-app
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/component: grafana-dashboard
     app.kubernetes.io/instance: sabnzbd
@@ -1211,7 +1211,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: sabnzbd-config
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1233,7 +1233,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: sabnzbd-http
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1258,7 +1258,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: sabnzbd-metrics
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1283,7 +1283,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sabnzbd
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1504,7 +1504,7 @@ apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: sabnzbd-homeassistant
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1534,7 +1534,7 @@ apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: sabnzbd-ingress
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1564,7 +1564,7 @@ apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: sabnzbd-media-services
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1595,7 +1595,7 @@ apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   name: sabnzbd-prometheus
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1625,7 +1625,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
   name: sabnzbd
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1655,7 +1655,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: sabnzbd-route
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1691,7 +1691,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: sabnzbd-http-redirect
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1726,7 +1726,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: sabnzbd
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
@@ -1951,7 +1951,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: sabnzbd
-  namespace: default
+  namespace: download-clients
   labels:
     app.kubernetes.io/instance: sabnzbd
     app.kubernetes.io/name: sabnzbd
