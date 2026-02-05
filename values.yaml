@@ -286,8 +286,7 @@ deployment:
       enabled: true
       image:
         repository: ghcr.io/runlix/sabnzbd
-        tag: "release-4.5.5-latest"
-        digest: "sha256:826caa03179efed2d9ebb636d1cfbe50ba9a7982d467aa3288ebdb6c52c7e803"
+        tag: "release-4.5.5-latest@sha256:826caa03179efed2d9ebb636d1cfbe50ba9a7982d467aa3288ebdb6c52c7e803"
         pullPolicy: IfNotPresent
 
       env:
@@ -378,8 +377,7 @@ deployment:
       enabled: true
       image:
         repository: ghcr.io/orhayoun/exportarr
-        tag: "v2.3.1"
-        digest: "sha256:2650f6a501b1d691daf5dfe758068f44336d0bb1d443f9db2c94900244d423bc"
+        tag: "v2.3.1@sha256:2650f6a501b1d691daf5dfe758068f44336d0bb1d443f9db2c94900244d423bc"
         pullPolicy: IfNotPresent
 
       args:

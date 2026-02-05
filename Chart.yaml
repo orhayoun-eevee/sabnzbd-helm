@@ -2,14 +2,14 @@ apiVersion: v2
 name: sabnzbd
 description: A Helm chart for SABnzbd using application-v2
 type: application
-version: 0.0.4
+version: 0.0.5
 appVersion: "4.5.3"
 keywords:
   - sabnzbd
   - download-clients
 dependencies:
   - name: lib-chart
-    version: "0.0.4"
+    version: "0.0.5"
     repository: "oci://ghcr.io/orhayoun-eevee/lib-chart"
 # dependencies:
 #   - name: lib-chart
