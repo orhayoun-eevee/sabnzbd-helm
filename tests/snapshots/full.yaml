@@ -509,6 +509,35 @@ spec:
           - "9100"
 ---
 # Source: sabnzbd/templates/all.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sabnzbd
+  namespace: download-clients
+  labels:
+    app.kubernetes.io/component: destination-rule
+    app.kubernetes.io/instance: test-release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: sabnzbd
+    app.kubernetes.io/version: 4.5.3
+    helm.sh/chart: sabnzbd-0.0.8
+spec:
+  host: sabnzbd-http
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 200
+        maxRequestsPerConnection: 10
+      tcp:
+        maxConnections: 200
+    outlierDetection:
+      baseEjectionTime: 15s
+      consecutive5xxErrors: 5
+      interval: 30s
+      maxEjectionPercent: 50
+---
+# Source: sabnzbd/templates/all.yaml
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
 metadata:
