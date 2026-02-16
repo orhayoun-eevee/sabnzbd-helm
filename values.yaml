@@ -8,9 +8,7 @@ global:
   namespace: download-clients
   chart:
     appVersion: 4.5.3
-  labels:
-    overrides:
-      app.kubernetes.io/instance: sabnzbd
+  labels: {}
 
 
 # ----------------------------------------------------------------------------
@@ -87,7 +85,7 @@ network:
                   statusCode: 301
   networkPolicy:
     enabled: true
-    items: 
+    items:
       default:
         enabled: true
         policyTypes:
@@ -102,7 +100,7 @@ network:
                 podSelector:
                   matchLabels:
                     app.kubernetes.io/name: shared-platform-gateway
-                    
+
               # Prometheus metrics scraping (metrics port + HBONE for ambient mesh)
               - namespaceSelector:
                   matchLabels:
@@ -262,7 +260,6 @@ deployment:
 
   # Pod labels
   podLabels:
-    app.kubernetes.io/component: downloader
     app.kubernetes.io/part-of: download-clients
     logging.kubernetes.io/component: download-clients
     logging.kubernetes.io/service: sabnzbd
@@ -292,12 +289,12 @@ deployment:
       env:
         - name: TZ
           value: "UTC"
-      
+
       ports:
         - containerPort: 8080
           name: http
           protocol: TCP
-      
+
       volumeMounts:
         - name: config
           mountPath: /config
@@ -401,9 +398,9 @@ deployment:
           protocol: TCP
 
       volumeMounts:
-      - name: config
-        mountPath: /config
-        readOnly: true
+        - name: config
+          mountPath: /config
+          readOnly: true
 
       # Health Probes
       livenessProbe:
@@ -513,7 +510,6 @@ metrics:
       matchLabels:
         app.kubernetes.io/name: sabnzbd
         app.kubernetes.io/instance: sabnzbd
-        app.kubernetes.io/component: service-metrics
 
     namespaceSelector:
       matchNames:
@@ -540,213 +536,269 @@ metrics:
   prometheusRule:
     enabled: true
     rules:
-    # SABnzbd metrics target down (scrape health)
-    - alert: SabnzbdDown
-      expr: up{job=~"sabnzbd|sabnzbd-metrics"} == 0
-      for: 5m
-      labels:
-        severity: critical
-        service: sabnzbd
-        component: download-clients
-      annotations:
-        summary: "Sabnzbd metrics target is down"
-        description: "Prometheus cannot scrape sabnzbd metrics (job sabnzbd/sabnzbd-metrics) for more than 5 minutes."
-    
-    # Queue size alert
-    - alert: SabnzbdQueueHigh
-      expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 100
-      for: 10m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-      annotations:
-        summary: "Sabnzbd queue is high"
-        description: "Sabnzbd has more than 100 items in the download queue for more than 10 minutes."
-    
-    # Queue warnings (SABnzbd-native signal)
-    - alert: SabnzbdQueueWarnings
-      expr: sabnzbd_queue_warnings{service="sabnzbd", component="download-clients"} > 0
-      for: 15m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-      annotations:
-        summary: "Sabnzbd queue warnings detected"
-        description: "Sabnzbd reports queue warnings for more than 15 minutes. Inspect SABnzbd UI/logs for details."
-    
-    # Low free space in download folder (app-level view; often backed by NFS)
-    - alert: SabnzbdDownloadDiskFreeLow
-      expr: (sabnzbd_disk_total_bytes{service="sabnzbd", component="download-clients", folder="download"} - sabnzbd_disk_used_bytes{service="sabnzbd", component="download-clients", folder="download"}) < 20 * 1024 * 1024 * 1024
-      for: 5m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        volume_type: download
-      annotations:
-        summary: "Sabnzbd download disk free space is low"
-        description: "Sabnzbd reports less than 20GiB free in folder=download for more than 5 minutes."
+      # SABnzbd metrics target down (scrape health)
+      - alert: SabnzbdDown
+        expr: up{job=~"sabnzbd|sabnzbd-metrics"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd metrics target is down"
+          description: "Prometheus cannot scrape sabnzbd metrics (job sabnzbd/sabnzbd-metrics) for more than 5 minutes."
 
-    # Low free space in complete folder
-    - alert: SabnzbdCompleteDiskFreeLow
-      expr: (sabnzbd_disk_total_bytes{service="sabnzbd", component="download-clients", folder="complete"} - sabnzbd_disk_used_bytes{service="sabnzbd", component="download-clients", folder="complete"}) < 20 * 1024 * 1024 * 1024
-      for: 5m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        volume_type: complete
-      annotations:
-        summary: "Sabnzbd complete disk free space is low"
-        description: "Sabnzbd reports less than 20GiB free in folder=complete for more than 5 minutes."
-    
-    # Exportarr sidecar restarting alert (tolerate historical container name variations)
-    - alert: SabnzbdExportarrRestarting
-      expr: increase(kube_pod_container_status_restarts_total{namespace="download-clients", pod=~"sabnzbd-.*", container=~"exportarr|exporter"}[1h]) > 2
-      for: 0m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        sidecar: exportarr
-      annotations:
-        summary: "Sabnzbd Exportarr sidecar restarting frequently"
-        description: "Exportarr sidecar container in Sabnzbd pod {{ $labels.pod }} has restarted more than 2 times in the last hour."
-    
-    # Exporter container not ready alert
-    - alert: SabnzbdExporterNotReady
-      expr: |
-        kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"} > 0
-        and
-        kube_pod_container_status_ready{container=~"exportarr|exporter", pod=~"sabnzbd-.*", namespace="download-clients"} == 0
-      for: 2m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        sidecar: exportarr
-      annotations:
-        summary: "Sabnzbd Exportarr sidecar is not ready"
-        description: "Exportarr container in Sabnzbd pod {{ $labels.pod }} is not ready for more than 2 minutes. Check exporter container logs."
-    
-    # Exportarr metrics unavailable alert
-    - alert: SabnzbdExportarrMetricsUnavailable
-      expr: kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"} > 0 and absent_over_time(sabnzbd_info{service="sabnzbd", component="download-clients"}[5m])
-      for: 5m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        sidecar: exportarr
-      annotations:
-        summary: "Sabnzbd Exportarr metrics endpoint unavailable"
-        description: "Sabnzbd pod is running but Exportarr metrics are missing for more than 5 minutes. Check Exportarr container logs in pod {{ $labels.pod }}."
-    
-    # Authorization policy denials alert
-    - alert: SabnzbdAuthorizationPolicyDenials
-      expr: sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http", response_code="403", response_flags="SEC"}[5m])) > 0
-      for: 2m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        security: authorization
-      annotations:
-        summary: "Sabnzbd authorization policy denials detected"
-        description: "Sabnzbd is experiencing authorization policy denials. {{ $value }} requests/sec are being denied."
-    
-    # High authorization denial rate alert
-    - alert: SabnzbdHighAuthorizationDenialRate
-      expr: |
-        (
-          sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http", response_code="403", response_flags="SEC"}[5m]))
-          /
-          sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http"}[5m]))
-        ) * 100 > 5
-      for: 5m
-      labels:
-        severity: critical
-        service: sabnzbd
-        component: download-clients
-        security: authorization
-      annotations:
-        summary: "Sabnzbd high authorization denial rate"
-        description: "Sabnzbd has a high authorization denial rate ({{ $value }}% of requests denied). This may indicate a misconfigured authorization policy."
+      # Queue size alert
+      - alert: SabnzbdQueueHigh
+        expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd queue is high"
+          description: "Sabnzbd has more than 100 items in the download queue for more than 10 minutes."
 
-    # Stalled downloads: queue exists but speed is ~0 for a sustained period
-    - alert: SabnzbdStalledDownloads
-      expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 0 and avg_over_time(sabnzbd_speed_bps{service="sabnzbd", component="download-clients"}[10m]) < 1024
-      for: 10m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-      annotations:
-        summary: "Sabnzbd downloads appear stalled"
-        description: "Sabnzbd has items in queue but average download speed is < 1KiB/s for 10 minutes."
+      # Queue warnings (SABnzbd-native signal)
+      - alert: SabnzbdQueueWarnings
+        expr: sabnzbd_queue_warnings{service="sabnzbd", component="download-clients"} > 0
+        for: 15m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd queue warnings detected"
+          description: "Sabnzbd reports queue warnings for more than 15 minutes. Inspect SABnzbd UI/logs for details."
 
-    # Provider health regression: overall article success rate is low
-    - alert: SabnzbdProviderSuccessRateLow
-      expr: (sum(increase(sabnzbd_server_articles_success{service="sabnzbd", component="download-clients"}[15m])) / sum(increase(sabnzbd_server_articles_total{service="sabnzbd", component="download-clients"}[15m]))) < 0.95
-      for: 15m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-      annotations:
-        summary: "Sabnzbd provider success rate is low"
-        description: "Overall SABnzbd server article success rate < 95% for 15 minutes (provider/indexer issues likely)."
+      # Low free space in download folder (app-level view; often backed by NFS)
+      - alert: SabnzbdDownloadDiskFreeLow
+        expr: |
+          (
+            sabnzbd_disk_total_bytes{
+              service="sabnzbd",
+              component="download-clients",
+              folder="download"
+            }
+            -
+            sabnzbd_disk_used_bytes{
+              service="sabnzbd",
+              component="download-clients",
+              folder="download"
+            }
+          ) < 20 * 1024 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          volume_type: download
+        annotations:
+          summary: "Sabnzbd download disk free space is low"
+          description: "Sabnzbd reports less than 20GiB free in folder=download for more than 5 minutes."
 
-    # Exporter scrape is slow (SAB API or exporter slowness)
-    - alert: SabnzbdExportarrScrapeSlow
-      expr: max_over_time(sabnzbd_scrape_duration_seconds{service="sabnzbd", component="download-clients"}[10m]) > 2
-      for: 10m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        sidecar: exportarr
-      annotations:
-        summary: "Sabnzbd exporter scrape is slow"
-        description: "Exportarr scrape duration > 2s (max over 10m). Check SAB API responsiveness and exporter logs."
+      # Low free space in complete folder
+      - alert: SabnzbdCompleteDiskFreeLow
+        expr: |
+          (
+            sabnzbd_disk_total_bytes{
+              service="sabnzbd",
+              component="download-clients",
+              folder="complete"
+            }
+            -
+            sabnzbd_disk_used_bytes{
+              service="sabnzbd",
+              component="download-clients",
+              folder="complete"
+            }
+          ) < 20 * 1024 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          volume_type: complete
+        annotations:
+          summary: "Sabnzbd complete disk free space is low"
+          description: "Sabnzbd reports less than 20GiB free in folder=complete for more than 5 minutes."
 
-    # CPU utilization vs requests (cluster/runtime-level)
-    - alert: SabnzbdHighCPUUtilization
-      expr: |
-        (
-          sum(rate(container_cpu_usage_seconds_total{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"}[5m]))
-          /
-          sum(kube_pod_container_resource_requests{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="cpu"})
-        ) * 100 > 80
-      for: 10m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        resource: cpu
-      annotations:
-        summary: "Sabnzbd CPU utilization is high"
-        description: "Sabnzbd CPU usage is above 80% of requested CPU for more than 10 minutes (value={{ $value }}%)."
+      # Exportarr sidecar restarting alert (tolerate historical container name variations)
+      - alert: SabnzbdExportarrRestarting
+        expr: increase(kube_pod_container_status_restarts_total{namespace="download-clients", pod=~"sabnzbd-.*", container=~"exportarr|exporter"}[1h]) > 2
+        for: 0m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd Exportarr sidecar restarting frequently"
+          description: "Exportarr sidecar container in Sabnzbd pod {{ $labels.pod }} has restarted more than 2 times in the last hour."
 
-    # Memory utilization vs limits (cluster/runtime-level)
-    - alert: SabnzbdHighMemoryUtilization
-      expr: |
-        (
-          max(container_memory_working_set_bytes{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"})
-          /
-          max(kube_pod_container_resource_limits{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="memory"})
-        ) * 100 > 85
-      for: 10m
-      labels:
-        severity: warning
-        service: sabnzbd
-        component: download-clients
-        resource: memory
-      annotations:
-        summary: "Sabnzbd memory utilization is high"
-        description: "Sabnzbd memory working set is above 85% of memory limit for more than 10 minutes (value={{ $value }}%)."
+      # Exporter container not ready alert
+      - alert: SabnzbdExporterNotReady
+        expr: |
+          kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"} > 0
+          and
+          kube_pod_container_status_ready{container=~"exportarr|exporter", pod=~"sabnzbd-.*", namespace="download-clients"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd Exportarr sidecar is not ready"
+          description: "Exportarr container in Sabnzbd pod {{ $labels.pod }} is not ready for more than 2 minutes. Check exporter container logs."
+
+      # Exportarr metrics unavailable alert
+      - alert: SabnzbdExportarrMetricsUnavailable
+        expr: kube_deployment_status_replicas_available{deployment="sabnzbd", namespace="download-clients"} > 0 and absent_over_time(sabnzbd_info{service="sabnzbd", component="download-clients"}[5m])
+        for: 5m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd Exportarr metrics endpoint unavailable"
+          description: "Sabnzbd pod is running but Exportarr metrics are missing for more than 5 minutes. Check Exportarr container logs in pod {{ $labels.pod }}."
+
+      # Authorization policy denials alert
+      - alert: SabnzbdAuthorizationPolicyDenials
+        expr: |
+          sum(
+            rate(istio_requests_total{
+              destination_workload="sabnzbd",
+              destination_workload_namespace="download-clients",
+              destination_service_name="sabnzbd",
+              request_protocol="http",
+              response_code="403",
+              response_flags="SEC"
+            }[5m])
+          ) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          security: authorization
+        annotations:
+          summary: "Sabnzbd authorization policy denials detected"
+          description: "Sabnzbd is experiencing authorization policy denials. {{ $value }} requests/sec are being denied."
+
+      # High authorization denial rate alert
+      - alert: SabnzbdHighAuthorizationDenialRate
+        expr: |
+          (
+            sum(
+              rate(istio_requests_total{
+                destination_workload="sabnzbd",
+                destination_workload_namespace="download-clients",
+                destination_service_name="sabnzbd",
+                request_protocol="http",
+                response_code="403",
+                response_flags="SEC"
+              }[5m])
+            )
+            /
+            sum(rate(istio_requests_total{destination_workload="sabnzbd", destination_workload_namespace="download-clients", destination_service_name="sabnzbd", request_protocol="http"}[5m]))
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          service: sabnzbd
+          component: download-clients
+          security: authorization
+        annotations:
+          summary: "Sabnzbd high authorization denial rate"
+          description: "Sabnzbd has a high authorization denial rate ({{ $value }}% of requests denied). This may indicate a misconfigured authorization policy."
+
+      # Stalled downloads: queue exists but speed is ~0 for a sustained period
+      - alert: SabnzbdStalledDownloads
+        expr: sabnzbd_queue_length{service="sabnzbd", component="download-clients"} > 0 and avg_over_time(sabnzbd_speed_bps{service="sabnzbd", component="download-clients"}[10m]) < 1024
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd downloads appear stalled"
+          description: "Sabnzbd has items in queue but average download speed is < 1KiB/s for 10 minutes."
+
+      # Provider health regression: overall article success rate is low
+      - alert: SabnzbdProviderSuccessRateLow
+        expr: |
+          (
+            sum(increase(sabnzbd_server_articles_success{
+              service="sabnzbd",
+              component="download-clients"
+            }[15m]))
+            /
+            sum(increase(sabnzbd_server_articles_total{
+              service="sabnzbd",
+              component="download-clients"
+            }[15m]))
+          ) < 0.95
+        for: 15m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+        annotations:
+          summary: "Sabnzbd provider success rate is low"
+          description: "Overall SABnzbd server article success rate < 95% for 15 minutes (provider/indexer issues likely)."
+
+      # Exporter scrape is slow (SAB API or exporter slowness)
+      - alert: SabnzbdExportarrScrapeSlow
+        expr: max_over_time(sabnzbd_scrape_duration_seconds{service="sabnzbd", component="download-clients"}[10m]) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          sidecar: exportarr
+        annotations:
+          summary: "Sabnzbd exporter scrape is slow"
+          description: "Exportarr scrape duration > 2s (max over 10m). Check SAB API responsiveness and exporter logs."
+
+      # CPU utilization vs requests (cluster/runtime-level)
+      - alert: SabnzbdHighCPUUtilization
+        expr: |
+          (
+            sum(rate(container_cpu_usage_seconds_total{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"}[5m]))
+            /
+            sum(kube_pod_container_resource_requests{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="cpu"})
+          ) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          resource: cpu
+        annotations:
+          summary: "Sabnzbd CPU utilization is high"
+          description: "Sabnzbd CPU usage is above 80% of requested CPU for more than 10 minutes (value={{ $value }}%)."
+
+      # Memory utilization vs limits (cluster/runtime-level)
+      - alert: SabnzbdHighMemoryUtilization
+        expr: |
+          (
+            max(container_memory_working_set_bytes{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd"})
+            /
+            max(kube_pod_container_resource_limits{namespace="download-clients", pod=~"sabnzbd-.*", container="sabnzbd", resource="memory"})
+          ) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: sabnzbd
+          component: download-clients
+          resource: memory
+        annotations:
+          summary: "Sabnzbd memory utilization is high"
+          description: "Sabnzbd memory working set is above 85% of memory limit for more than 10 minutes (value={{ $value }}%)."
   # Grafana Configuration
   grafana:
     enabled: true
@@ -758,14 +810,9 @@ metrics:
           name: "application"
           allowCrossNamespaceImport: true
           file: "app.json"
-          # Optional: Override instanceSelector for this specific dashboard
-          # instanceSelector:
-          #   matchLabels:
-          #     dashboards: "specific-grafana"
-          # Optional: Folder assignment
-          # folder: "Application Dashboards"
-          # folderUID: "app-dashboards-uid"
-          # folderRef: "grafana-folder-resource"
+          instanceSelector:
+            matchLabels:
+              dashboards: "grafana"
 # ----------------------------------------------------------------------------
 # Service Account
 # ----------------------------------------------------------------------------
