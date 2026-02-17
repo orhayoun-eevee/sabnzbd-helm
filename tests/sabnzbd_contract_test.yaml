@@ -142,3 +142,17 @@ tests:
     asserts:
       - hasDocuments:
           count: 15
+
+  - it: applies explicit sabnzbd image override for controlled rollouts
+    set:
+      deployment:
+        containers:
+          sabnzbd:
+            image:
+              repository: registry.internal/sabnzbd
+              tag: ci-test
+    asserts:
+      - documentIndex: 1
+        equal:
+          path: spec.template.spec.containers[1].image
+          value: registry.internal/sabnzbd:ci-test
