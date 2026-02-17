@@ -22,6 +22,12 @@ tests:
         equal:
           path: kind
           value: ServiceMonitor
+      - documentSelector:
+          path: kind
+          value: DestinationRule
+        equal:
+          path: spec.host
+          value: sabnzbd-http
 
   - it: wires sabnzbd application container security and pvc correctly
     asserts:
