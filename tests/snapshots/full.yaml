@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   podSelector:
     matchLabels:
@@ -92,7 +92,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
   annotations:
     app.kubernetes.io/managed-by: argocd
     description: SABnzbd media center service account
@@ -110,7 +110,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
   annotations:
     helm.sh/resource-policy: keep
 spec:
@@ -133,7 +133,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
   annotations:
     description: SABnzbd media center HTTP service
 spec:
@@ -159,7 +159,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
   annotations:
     description: SABnzbd metrics service
 spec:
@@ -185,7 +185,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   replicas: 1
   revisionHistoryLimit: 3
@@ -203,11 +203,12 @@ spec:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: sabnzbd
         app.kubernetes.io/version: 4.5.3
-        helm.sh/chart: sabnzbd-0.0.8
+        helm.sh/chart: sabnzbd-0.0.9
         app.kubernetes.io/part-of: download-clients
         logging.kubernetes.io/component: download-clients
         logging.kubernetes.io/service: sabnzbd
     spec:
+      
       terminationGracePeriodSeconds: 60
       securityContext:
         fsGroup: 1010
@@ -403,7 +404,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   selector:
     matchLabels:
@@ -432,7 +433,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   selector:
     matchLabels:
@@ -461,7 +462,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   selector:
     matchLabels:
@@ -491,7 +492,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   selector:
     matchLabels:
@@ -520,7 +521,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   host: sabnzbd-http
   trafficPolicy:
@@ -549,7 +550,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   instanceSelector:
     matchLabels:
@@ -571,7 +572,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   parentRefs:
     - name: shared-platform-gateway
@@ -582,17 +583,16 @@ spec:
   hostnames:
     - sabnzbd-k8s.orhayoun.com
   rules:
-    -
+    - backendRefs:
+      - group: ""
+        kind: Service
+        name: sabnzbd-http
+        port: 8080
+        weight: 100
       matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - group: ""
-          kind: Service
-          name: sabnzbd-http
-          port: 8080
-          weight: 100
+      - path:
+          type: PathPrefix
+          value: /
 ---
 # Source: sabnzbd/templates/all.yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -606,7 +606,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   parentRefs:
     - name: shared-platform-gateway
@@ -617,16 +617,15 @@ spec:
   hostnames:
     - sabnzbd-k8s.orhayoun.com
   rules:
-    -
+    - filters:
+      - requestRedirect:
+          scheme: https
+          statusCode: 301
+        type: RequestRedirect
       matches:
-        - path:
-            type: PathPrefix
-            value: /
-      filters:
-        - requestRedirect:
-            scheme: https
-            statusCode: 301
-          type: RequestRedirect
+      - path:
+          type: PathPrefix
+          value: /
 ---
 # Source: sabnzbd/templates/all.yaml
 apiVersion: monitoring.coreos.com/v1
@@ -640,7 +639,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   groups:
     - name: sabnzbd.rules
@@ -913,7 +912,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: sabnzbd
     app.kubernetes.io/version: 4.5.3
-    helm.sh/chart: sabnzbd-0.0.8
+    helm.sh/chart: sabnzbd-0.0.9
 spec:
   selector:
     matchLabels:
