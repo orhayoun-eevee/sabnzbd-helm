@@ -66,12 +66,13 @@ tests:
 
   - it: applies app timezone env override
     set:
-      deployment:
-        containers:
-          sabnzbd:
-            env:
-              - name: TZ
-                value: Europe/Berlin
+      workload:
+        spec:
+          containers:
+            sabnzbd:
+              env:
+                - name: TZ
+                  value: Europe/Berlin
     asserts:
       - documentIndex: 1
         equal:

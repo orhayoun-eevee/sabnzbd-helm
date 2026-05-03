@@ -246,221 +246,223 @@ network:
 
 
 # ----------------------------------------------------------------------------
-# Deployment Configuration
+# Workload Configuration
 # ----------------------------------------------------------------------------
-deployment:
-  replicas: 1
-  strategy:
-    type: Recreate
-  revisionHistoryLimit: 3
-  terminationGracePeriodSeconds: 60
-  dnsPolicy: ClusterFirst
-  enableServiceLinks: false
-  automountServiceAccountToken: false
+workload:
+  type: deployment
+  spec:
+    replicas: 1
+    strategy:
+      type: Recreate
+    revisionHistoryLimit: 3
+    terminationGracePeriodSeconds: 60
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: false
+    automountServiceAccountToken: false
 
-  # Pod labels
-  podLabels:
-    app.kubernetes.io/part-of: download-clients
-    logging.kubernetes.io/component: download-clients
-    logging.kubernetes.io/service: sabnzbd
+    # Pod labels
+    podLabels:
+      app.kubernetes.io/part-of: download-clients
+      logging.kubernetes.io/component: download-clients
+      logging.kubernetes.io/service: sabnzbd
 
-  # Pod security context
-  podSecurityContext:
-    fsGroup: 1010
-    fsGroupChangePolicy: OnRootMismatch
-    runAsNonRoot: true
-    supplementalGroups: []  # Empty - SABnzbd doesn't need additional NFS groups like media-center services
+    # Pod security context
+    podSecurityContext:
+      fsGroup: 1010
+      fsGroupChangePolicy: OnRootMismatch
+      runAsNonRoot: true
+      supplementalGroups: []  # Empty - SABnzbd doesn't need additional NFS groups like media-center services
 
-  # Node selector to ensure pods only schedule on Linux nodes
-  nodeSelector:
-    kubernetes.io/os: linux
+    # Node selector to ensure pods only schedule on Linux nodes
+    nodeSelector:
+      kubernetes.io/os: linux
 
-  # Main container configuration
-  # NOTE: Container name 'sabnzbd' matches dashboard queries (container="sabnzbd")
-  # Application-v2 requires explicit container definitions (no defaults)
-  containers:
-    sabnzbd:
-      enabled: true
-      image:
-        repository: ghcr.io/runlix/sabnzbd
-        tag: "release-4.5.5-latest@sha256:826caa03179efed2d9ebb636d1cfbe50ba9a7982d467aa3288ebdb6c52c7e803"
-        pullPolicy: IfNotPresent
+    # Main container configuration
+    # NOTE: Container name 'sabnzbd' matches dashboard queries (container="sabnzbd")
+    # Application-v2 requires explicit container definitions (no defaults)
+    containers:
+      sabnzbd:
+        enabled: true
+        image:
+          repository: ghcr.io/runlix/sabnzbd
+          tag: "release-4.5.5-latest@sha256:826caa03179efed2d9ebb636d1cfbe50ba9a7982d467aa3288ebdb6c52c7e803"
+          pullPolicy: IfNotPresent
 
-      env:
-        - name: TZ
-          value: "UTC"
+        env:
+          - name: TZ
+            value: "UTC"
 
-      ports:
-        - containerPort: 8080
-          name: http
-          protocol: TCP
+        ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
 
-      volumeMounts:
-        - name: config
-          mountPath: /config
-        - name: backup
-          mountPath: /backup
-        - name: downloads
-          mountPath: /downloads
-        - name: media
-          mountPath: /media
-        - name: tmp
-          mountPath: /tmp
+        volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: backup
+            mountPath: /backup
+          - name: downloads
+            mountPath: /downloads
+          - name: media
+            mountPath: /media
+          - name: tmp
+            mountPath: /tmp
 
-      # Health Probes
-      livenessProbe:
-        httpGet:
-          path: /
-          port: http
-          scheme: HTTP
-        failureThreshold: 3
-        initialDelaySeconds: 30
-        periodSeconds: 30
-        timeoutSeconds: 10
-        successThreshold: 1
+        # Health Probes
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
 
-      readinessProbe:
-        httpGet:
-          path: /
-          port: http
-          scheme: HTTP
-        failureThreshold: 3
-        initialDelaySeconds: 15
-        periodSeconds: 10
-        timeoutSeconds: 5
-        successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
 
-      startupProbe:
-        httpGet:
-          path: /
-          port: http
-          scheme: HTTP
-        failureThreshold: 30
-        initialDelaySeconds: 10
-        periodSeconds: 5
-        timeoutSeconds: 5
-        successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /
+            port: http
+            scheme: HTTP
+          failureThreshold: 30
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
 
-      # Container Security Context (main container override)
-      securityContext:
-        readOnlyRootFilesystem: true  # SECURITY: Read-only root filesystem prevents writes to root filesystem
-        runAsNonRoot: true
-        runAsUser: 1010  # Matches SABnzbd PUID from MEDIA_CENTER_PERMISSIONS.md
-        runAsGroup: 1010  # Matches SABnzbd PGID from MEDIA_CENTER_PERMISSIONS.md
-        allowPrivilegeEscalation: false
-        privileged: false
-        appArmorProfile:
-          type: RuntimeDefault
-        capabilities:
-          # SETUID/SETGID capabilities not needed for runlix image
-          drop:
-            - ALL
-        seccompProfile:
-          type: RuntimeDefault
+        # Container Security Context (main container override)
+        securityContext:
+          readOnlyRootFilesystem: true  # SECURITY: Read-only root filesystem prevents writes to root filesystem
+          runAsNonRoot: true
+          runAsUser: 1010  # Matches SABnzbd PUID from MEDIA_CENTER_PERMISSIONS.md
+          runAsGroup: 1010  # Matches SABnzbd PGID from MEDIA_CENTER_PERMISSIONS.md
+          allowPrivilegeEscalation: false
+          privileged: false
+          appArmorProfile:
+            type: RuntimeDefault
+          capabilities:
+            # SETUID/SETGID capabilities not needed for runlix image
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
 
-      # Resources
-      resources:
-        requests:
-          cpu: 1000m
-          memory: 256Mi
-          ephemeral-storage: 2Gi
-        limits:
-          cpu: 1000m
-          memory: 2Gi
-          ephemeral-storage: 2Gi
+        # Resources
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 256Mi
+            ephemeral-storage: 2Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+            ephemeral-storage: 2Gi
 
-    # Metrics exporter container (Exportarr)
-    exportarr:
-      enabled: true
-      image:
-        repository: ghcr.io/orhayoun/exportarr
-        tag: "v2.3.1@sha256:2650f6a501b1d691daf5dfe758068f44336d0bb1d443f9db2c94900244d423bc"
-        pullPolicy: IfNotPresent
+      # Metrics exporter container (Exportarr)
+      exportarr:
+        enabled: true
+        image:
+          repository: ghcr.io/orhayoun/exportarr
+          tag: "v2.3.1@sha256:2650f6a501b1d691daf5dfe758068f44336d0bb1d443f9db2c94900244d423bc"
+          pullPolicy: IfNotPresent
 
-      args:
-        - "sabnzbd"
+        args:
+          - "sabnzbd"
 
-      env:
-        - name: URL
-          value: http://localhost:8080
-        - name: CONFIG
-          value: /config/sabnzbd.ini
-        - name: PORT
-          value: "9100"
-        - name: ENABLE_ADDITIONAL_METRICS
-          value: "false"
-        - name: ENABLE_UNKNOWN_QUEUE_ITEMS
-          value: "false"
+        env:
+          - name: URL
+            value: http://localhost:8080
+          - name: CONFIG
+            value: /config/sabnzbd.ini
+          - name: PORT
+            value: "9100"
+          - name: ENABLE_ADDITIONAL_METRICS
+            value: "false"
+          - name: ENABLE_UNKNOWN_QUEUE_ITEMS
+            value: "false"
 
-      ports:
-        - containerPort: 9100
-          name: metrics
-          protocol: TCP
+        ports:
+          - containerPort: 9100
+            name: metrics
+            protocol: TCP
 
-      volumeMounts:
-        - name: config
-          mountPath: /config
-          readOnly: true
+        volumeMounts:
+          - name: config
+            mountPath: /config
+            readOnly: true
 
-      # Health Probes
-      livenessProbe:
-        httpGet:
-          path: /metrics
-          port: metrics
-          scheme: HTTP
-        initialDelaySeconds: 30
-        periodSeconds: 30
-        timeoutSeconds: 5
-        failureThreshold: 3
-        successThreshold: 1
+        # Health Probes
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
 
-      readinessProbe:
-        httpGet:
-          path: /metrics
-          port: metrics
-          scheme: HTTP
-        initialDelaySeconds: 10
-        periodSeconds: 10
-        timeoutSeconds: 5
-        failureThreshold: 3
-        successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
 
-      startupProbe:
-        httpGet:
-          path: /metrics
-          port: metrics
-          scheme: HTTP
-        initialDelaySeconds: 45  # MONITORING: Allow time for SABnzbd to be ready
-        periodSeconds: 10  # MONITORING: Check every 10s to reduce probe frequency during startup
-        timeoutSeconds: 10  # MONITORING: Longer timeout allows exporter time to connect to SABnzbd and respond
-        failureThreshold: 30  # MONITORING: Allow up to 5 minutes total startup time (45s + 30*10s = 345s)
-        successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 45  # MONITORING: Allow time for SABnzbd to be ready
+          periodSeconds: 10  # MONITORING: Check every 10s to reduce probe frequency during startup
+          timeoutSeconds: 10  # MONITORING: Longer timeout allows exporter time to connect to SABnzbd and respond
+          failureThreshold: 30  # MONITORING: Allow up to 5 minutes total startup time (45s + 30*10s = 345s)
+          successThreshold: 1
 
-      # Container Security Context
-      securityContext:
-        allowPrivilegeEscalation: false
-        readOnlyRootFilesystem: true  # Exportarr can run read-only
-        runAsNonRoot: true
-        runAsUser: 65534  # nobody user
-        runAsGroup: 65534
-        appArmorProfile:
-          type: RuntimeDefault
-        capabilities:
-          drop:
-            - ALL
-        seccompProfile:
-          type: RuntimeDefault
+        # Container Security Context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true  # Exportarr can run read-only
+          runAsNonRoot: true
+          runAsUser: 65534  # nobody user
+          runAsGroup: 65534
+          appArmorProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
 
-      # Resources
-      resources:
-        requests:
-          cpu: 10m
-          memory: 32Mi
-          ephemeral-storage: 100Mi
-        limits:
-          cpu: 100m
-          memory: 64Mi
-          ephemeral-storage: 100Mi
+        # Resources
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+            ephemeral-storage: 100Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+            ephemeral-storage: 100Mi
 
 # ----------------------------------------------------------------------------
 # Feature: Persistence

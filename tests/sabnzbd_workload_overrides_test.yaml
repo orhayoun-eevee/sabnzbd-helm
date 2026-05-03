@@ -2,10 +2,11 @@ suite: sabnzbd workload overrides
 templates:
   - templates/all.yaml
 tests:
-  - it: applies deployment replica override
+  - it: applies workload replica override
     set:
-      deployment:
-        replicas: 2
+      workload:
+        spec:
+          replicas: 2
     asserts:
       - documentSelector:
           path: kind
@@ -16,9 +17,10 @@ tests:
 
   - it: applies pod security context fsGroup override
     set:
-      deployment:
-        podSecurityContext:
-          fsGroup: 2000
+      workload:
+        spec:
+          podSecurityContext:
+            fsGroup: 2000
     asserts:
       - documentSelector:
           path: kind
@@ -43,12 +45,13 @@ tests:
 
   - it: applies container cpu limit override
     set:
-      deployment:
-        containers:
-          sabnzbd:
-            resources:
-              limits:
-                cpu: 750m
+      workload:
+        spec:
+          containers:
+            sabnzbd:
+              resources:
+                limits:
+                  cpu: 750m
     asserts:
       - documentIndex: 1
         equal:
@@ -57,11 +60,12 @@ tests:
 
   - it: applies container security context runAsUser override
     set:
-      deployment:
-        containers:
-          sabnzbd:
-            securityContext:
-              runAsUser: 2001
+      workload:
+        spec:
+          containers:
+            sabnzbd:
+              securityContext:
+                runAsUser: 2001
     asserts:
       - documentIndex: 1
         equal:
